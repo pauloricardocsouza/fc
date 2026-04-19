@@ -7,120 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="shared.css">
 <style>
-  :root {
-    --bg: #ffffff;
-    --surface: #ffffff;
-    --surface-2: #f5f7fa;
-    --surface-3: #eef1f5;
-    --border: #e4e8ee;
-    --border-strong: #c9d0da;
-    --text: #0a0e16;
-    --text-dim: #4a5262;
-    --text-muted: #6b7280;
-    --accent: #1CA7EC;
-    --accent-dim: #0d8bc7;
-    --accent-text: #0a6e9e;
-    --accent-glow: rgba(28, 167, 236, 0.12);
-    --accent-bg: rgba(28, 167, 236, 0.08);
-    --danger: #d92d20;
-    --danger-bg: rgba(217, 45, 32, 0.08);
-    --success-bg: rgba(16, 152, 84, 0.08);
-    --success: #109854;
-    --warning: #b45309;
-    --warning-bg: rgba(245,158,11,0.12);
-    --brand-black: #0a0e16;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Archivo', sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-  }
-  body {
-    background:
-      radial-gradient(1200px 600px at 85% -10%, rgba(28,167,236,0.06), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, rgba(28,167,236,0.04), transparent 60%),
-      var(--bg);
-  }
-
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 32px;
-    background: var(--brand-black); color: #fff;
-    position: sticky; top: 0; z-index: 50;
-    border-bottom: 2px solid var(--accent);
-    gap: 20px;
-  }
-  .brand { display: flex; align-items: center; gap: 14px; }
-  .brand-mark {
-    width: 38px; height: 38px;
-    border-radius: 50%; background: #000;
-    border: 1px solid #2a2f3a;
-    position: relative; overflow: hidden; flex-shrink: 0;
-  }
-  .brand-mark::before, .brand-mark::after {
-    content: ""; position: absolute;
-    width: 18px; height: 9px; border-radius: 2px;
-    clip-path: polygon(0 0, 100% 0, 100% 40%, 35% 40%, 35% 100%, 0 100%);
-  }
-  .brand-mark::before { background: #fff; transform: translate(-3px, -4px) rotate(-2deg); }
-  .brand-mark::after { background: var(--accent); transform: translate(4px, 5px) rotate(-2deg); }
-
-  .brand-text { display: flex; flex-direction: column; line-height: 1; }
-  .brand-text .name { font-weight: 800; font-size: 17px; letter-spacing: -0.01em; color: #fff; }
-  .brand-text .sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: #9aa3b2;
-    margin-top: 4px; text-transform: uppercase; letter-spacing: 0.15em;
-  }
-
-  .nav { display: flex; gap: 6px; }
-  .nav a {
-    color: #c9d0da; text-decoration: none;
-    font-size: 13px; font-weight: 500;
-    padding: 6px 12px; border-radius: 6px;
-    transition: color 0.15s, background 0.15s;
-    white-space: nowrap;
-  }
-  .nav a:hover { color: #fff; background: rgba(255,255,255,0.08); }
-  .nav a.active { color: #fff; background: rgba(28,167,236,0.25); font-weight: 600; }
-
-  .menu-toggle {
-    display: none; background: transparent;
-    border: 1px solid #2a2f3a; color: #fff;
-    padding: 6px 10px; border-radius: 6px; cursor: pointer;
-  }
-
-  .page-head {
-    padding: 32px 32px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .page-head .kicker {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--accent-text);
-    letter-spacing: 0.2em; text-transform: uppercase;
-    margin-bottom: 10px; font-weight: 600;
-  }
-  .page-head h1 {
-    font-size: 38px; font-weight: 800;
-    letter-spacing: -0.03em; line-height: 1;
-    color: var(--text);
-  }
-  .page-head h1 .accent { color: var(--accent-text); font-style: italic; }
-  .page-head .desc {
-    color: var(--text-dim); margin-top: 10px;
-    max-width: 640px; font-size: 13px;
-  }
-
   .info-box {
-    margin: 20px 32px 0;
+    margin: 20px 28px 0;
     padding: 14px 18px;
     background: var(--accent-bg);
     border: 1px solid rgba(28,167,236,0.2);
@@ -129,15 +19,12 @@
     font-size: 12px; color: var(--text-dim);
     align-items: flex-start;
   }
-  .info-box .ico {
-    color: var(--accent-text);
-    flex-shrink: 0; margin-top: 1px;
-  }
+  .info-box .ico { color: var(--accent-text); flex-shrink: 0; margin-top: 1px; }
   .info-box strong { color: var(--text); font-weight: 700; }
 
   .banner {
-    margin: 20px 32px 0;
-    padding: 16px 20px;
+    margin: 20px 28px 0;
+    padding: 14px 18px;
     background: var(--success-bg);
     border: 1px solid rgba(16,152,84,0.3);
     border-radius: 12px;
@@ -145,7 +32,7 @@
   }
   .banner.hidden { display: none; }
   .banner .ico {
-    width: 36px; height: 36px;
+    width: 32px; height: 32px;
     border-radius: 50%; background: var(--success); color: #fff;
     display: grid; place-items: center; flex-shrink: 0;
   }
@@ -159,22 +46,21 @@
     color: #fff; background: var(--success);
     font-weight: 700; font-size: 13px;
     text-decoration: none;
-    padding: 9px 16px; border-radius: 6px;
+    padding: 8px 14px; border-radius: 6px;
     transition: background 0.15s;
-    border: 1px solid var(--success);
   }
-  .banner a:hover { background: #0a7a42; border-color: #0a7a42; }
+  .banner a:hover { background: #0a7a42; }
 
   .upload-wrap {
-    padding: 24px 32px;
+    padding: 24px 28px;
     display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
   }
   .upload-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 16px; padding: 22px;
+    border-radius: 14px; padding: 20px;
     transition: border-color 0.2s, box-shadow 0.2s;
-    box-shadow: 0 1px 3px rgba(10,14,22,0.04);
+    box-shadow: var(--shadow-sm);
   }
   .upload-card:hover, .upload-card.dragging {
     border-color: var(--accent);
@@ -184,17 +70,17 @@
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 14px; gap: 10px; flex-wrap: wrap;
   }
-  .upload-card .title {
+  .upload-card .title-row {
     display: flex; align-items: center; gap: 10px;
     font-weight: 700; font-size: 15px; color: var(--text);
   }
-  .upload-card .title .tag {
+  .upload-card .title-row .tag {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px; padding: 3px 8px; border-radius: 4px;
     letter-spacing: 0.1em; font-weight: 600;
   }
   .tag-in { background: var(--accent-bg); color: var(--accent-text); }
-  .tag-out { background: var(--danger-bg); color: var(--danger); }
+  .tag-out { background: var(--danger-bg); color: var(--danger-text); }
   .upload-card .status {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px; color: var(--text-muted);
@@ -203,40 +89,39 @@
 
   .drop-zone {
     border: 1.5px dashed var(--border-strong);
-    border-radius: 12px; padding: 24px 18px;
+    border-radius: 10px; padding: 20px 16px;
     text-align: center; cursor: pointer;
     transition: border-color 0.2s, background 0.2s;
     display: block;
   }
   .drop-zone:hover { border-color: var(--accent); background: var(--accent-bg); }
   .drop-zone .icon {
-    width: 40px; height: 40px;
-    margin: 0 auto 10px;
+    width: 36px; height: 36px; margin: 0 auto 8px;
     border-radius: 50%;
     background: var(--accent-bg); color: var(--accent-text);
     display: grid; place-items: center;
   }
-  .drop-zone .primary { font-weight: 600; margin-bottom: 4px; color: var(--text); font-size: 13px; }
-  .drop-zone .hint { font-size: 12px; color: var(--text-muted); }
+  .drop-zone .primary { font-weight: 600; margin-bottom: 3px; color: var(--text); font-size: 13px; }
+  .drop-zone .hint { font-size: 11px; color: var(--text-muted); }
   .drop-zone input { display: none; }
 
   .file-info {
-    margin-top: 14px; padding: 12px 14px;
+    margin-top: 12px; padding: 10px 12px;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px; display: none;
   }
   .file-info.show { display: block; }
   .file-info .row { display: flex; justify-content: space-between; padding: 3px 0; gap: 10px; }
   .file-info .row .k { color: var(--text-muted); }
-  .file-info .row .v { color: var(--text); font-weight: 600; text-align: right; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+  .file-info .row .v { color: var(--text); font-weight: 600; text-align: right; overflow: hidden; text-overflow: ellipsis; max-width: 60%; white-space: nowrap; }
   .file-info .row.success .v { color: var(--success); }
   .file-info .row.warning .v { color: var(--warning); }
 
   .detected {
-    margin-top: 12px; padding: 10px 12px;
+    margin-top: 10px; padding: 9px 11px;
     background: var(--success-bg);
     border: 1px solid rgba(16,152,84,0.25);
     border-radius: 8px;
@@ -247,35 +132,31 @@
   .detected strong { color: var(--success); }
   .detected .row { margin-top: 3px; font-family: 'JetBrains Mono', monospace; }
 
-  .preview-wrap { padding: 0 32px 20px; display: none; }
+  .preview-wrap { padding: 0 28px 18px; display: none; }
   .preview-wrap.show { display: block; }
   .preview-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px; overflow: hidden;
-    box-shadow: 0 1px 3px rgba(10,14,22,0.04);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: var(--shadow-sm);
   }
   .preview-card .head {
-    padding: 14px 18px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     display: flex; justify-content: space-between; align-items: center;
     background: var(--surface-2); gap: 10px; flex-wrap: wrap;
   }
-  .preview-card h3 { font-size: 14px; font-weight: 700; color: var(--text); }
+  .preview-card h3 { font-size: 13px; font-weight: 700; color: var(--text); }
   .preview-card .sub {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px; color: var(--text-muted);
   }
   .preview-table {
-    overflow-x: auto;
-    max-height: 240px;
-    overflow-y: auto;
+    overflow-x: auto; max-height: 220px; overflow-y: auto;
   }
-  .preview-table table {
-    width: 100%; border-collapse: collapse; font-size: 12px;
-  }
+  .preview-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .preview-table th {
-    text-align: left; padding: 10px 14px;
+    text-align: left; padding: 9px 12px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px; font-weight: 700;
     color: var(--text-dim);
@@ -286,7 +167,7 @@
   }
   .preview-table th.right { text-align: right; }
   .preview-table td {
-    padding: 8px 14px;
+    padding: 7px 12px;
     border-bottom: 1px solid var(--border);
     color: var(--text);
     white-space: nowrap; max-width: 240px;
@@ -297,140 +178,44 @@
   .preview-table tbody tr:hover { background: var(--surface-2); }
 
   .actions-bar {
-    padding: 0 32px 40px;
-    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    padding: 0 28px 30px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   }
-  .btn {
-    background: var(--accent); color: #fff; border: none;
-    padding: 13px 24px; border-radius: 8px;
-    font-family: inherit; font-weight: 700; font-size: 14px;
-    letter-spacing: 0.02em; cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
-    box-shadow: 0 2px 6px rgba(28,167,236,0.25);
-  }
-  .btn:hover { background: var(--accent-dim); box-shadow: 0 4px 12px rgba(28,167,236,0.35); }
-  .btn:active { transform: translateY(1px); }
-  .btn:disabled {
-    background: var(--surface-3); color: var(--text-muted);
-    cursor: not-allowed; box-shadow: none;
-  }
-  .btn-ghost {
-    background: var(--surface); color: var(--text);
-    border: 1px solid var(--border-strong); box-shadow: none;
-  }
-  .btn-ghost:hover { background: var(--surface-2); border-color: var(--accent); box-shadow: none; }
 
-  .summary-wrap { padding: 0 32px 40px; display: none; }
+  .summary-wrap { padding: 0 28px 30px; display: none; }
   .summary-wrap.show { display: block; }
   .summary-card {
     background: var(--success-bg);
     border: 1px solid rgba(16,152,84,0.3);
-    border-radius: 14px; padding: 22px;
+    border-radius: 14px; padding: 20px;
     display: grid; grid-template-columns: auto 1fr auto;
-    gap: 20px; align-items: center;
+    gap: 18px; align-items: center;
   }
   .summary-card .ico {
-    width: 48px; height: 48px;
+    width: 44px; height: 44px;
     border-radius: 50%; background: var(--success); color: #fff;
     display: grid; place-items: center;
   }
   .summary-card .body h3 {
-    font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px;
+    font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 5px;
   }
   .summary-card .body p {
     font-size: 13px; color: var(--text-dim); line-height: 1.6;
   }
   .summary-card .body p strong { color: var(--text); font-weight: 700; }
-  .summary-card .btn-success {
-    background: var(--success); color: #fff;
-    padding: 12px 22px; border-radius: 8px;
-    text-decoration: none; font-weight: 700; font-size: 13px;
-    box-shadow: 0 2px 6px rgba(16,152,84,0.3);
-    transition: background 0.2s; white-space: nowrap;
-  }
-  .summary-card .btn-success:hover { background: #0a7a42; }
 
-  .loading-overlay {
-    position: fixed; inset: 0;
-    background: rgba(255,255,255,0.85);
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 16px;
-    z-index: 200;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.2s;
-    backdrop-filter: blur(4px);
-  }
-  .loading-overlay.open { opacity: 1; pointer-events: auto; }
-  .loading-overlay .spinner {
-    width: 42px; height: 42px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-overlay .text {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 0.1em;
-  }
-
-  footer {
-    padding: 22px 32px;
-    border-top: 1px solid var(--border);
-    text-align: center;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--text-muted);
-    letter-spacing: 0.08em;
-    background: var(--surface-2);
-  }
-
-  .hidden { display: none !important; }
-
-  @media (max-width: 900px) {
-    .upload-wrap { grid-template-columns: 1fr; padding: 20px 18px; }
-    .page-head h1 { font-size: 28px; }
-    .topbar { padding: 14px 18px; }
-    .page-head, .actions-bar, .preview-wrap, .summary-wrap { padding-left: 18px; padding-right: 18px; }
-    .banner, .info-box { margin-left: 18px; margin-right: 18px; }
+  @media (max-width: 860px) {
+    .upload-wrap { grid-template-columns: 1fr; padding: 18px 16px; }
+    .info-box, .banner { margin-left: 16px; margin-right: 16px; }
+    .preview-wrap, .actions-bar, .summary-wrap { padding-left: 16px; padding-right: 16px; }
     .summary-card { grid-template-columns: 1fr; text-align: center; }
     .summary-card .ico { margin: 0 auto; }
-    .nav { display: none; width: 100%; flex-direction: column; gap: 4px; margin-top: 10px; }
-    .nav.open { display: flex; }
-    .nav a { width: 100%; }
-    .menu-toggle { display: inline-flex; }
-    .topbar { flex-wrap: wrap; }
-    .btn { padding: 12px 20px; font-size: 13px; }
   }
-  @media (max-width: 560px) {
-    .page-head h1 { font-size: 24px; }
-    .page-head { padding: 24px 18px 16px; }
-  }
-
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: var(--surface-2); }
-  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 </style>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
-    <div class="brand-mark"></div>
-    <div class="brand-text">
-      <span class="name">Filadélfia</span>
-      <span class="sub">Sistema Financeiro</span>
-    </div>
-  </div>
-  <button class="menu-toggle" id="menu-toggle" aria-label="Menu">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
-  </button>
-  <nav class="nav" id="nav">
-    <a href="index.html">Fluxo de Caixa</a>
-    <a href="processamento.html" class="active">Processamento</a>
-  </nav>
-</header>
+<header class="topbar"></header>
 
 <section class="page-head">
   <div class="kicker">Processamento de dados</div>
@@ -449,7 +234,7 @@
 
 <div class="banner hidden" id="banner-existing">
   <div class="ico">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M20 6L9 17l-5-5"/>
     </svg>
   </div>
@@ -463,7 +248,7 @@
 <section class="upload-wrap">
   <div class="upload-card" id="card-pagar">
     <div class="header">
-      <div class="title">
+      <div class="title-row">
         Contas a Pagar
         <span class="tag tag-out">SAÍDAS</span>
       </div>
@@ -471,13 +256,13 @@
     </div>
     <label class="drop-zone" id="drop-pagar">
       <div class="icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
       </div>
-      <div class="primary">Arraste o arquivo ou clique para selecionar</div>
-      <div class="hint">Relatório do SIA, Títulos a Pagar (.xls ou .xlsx)</div>
+      <div class="primary">Arraste ou clique para selecionar</div>
+      <div class="hint">Relatório SIA, Títulos a Pagar (.xls ou .xlsx)</div>
       <input type="file" accept=".xlsx,.xls" id="file-pagar" />
     </label>
     <div class="file-info" id="info-pagar"></div>
@@ -486,7 +271,7 @@
 
   <div class="upload-card" id="card-receber">
     <div class="header">
-      <div class="title">
+      <div class="title-row">
         Contas a Receber
         <span class="tag tag-in">ENTRADAS</span>
       </div>
@@ -494,13 +279,13 @@
     </div>
     <label class="drop-zone" id="drop-receber">
       <div class="icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
       </div>
-      <div class="primary">Arraste o arquivo ou clique para selecionar</div>
-      <div class="hint">Relatório do SIA, Títulos a Receber (.xls ou .xlsx)</div>
+      <div class="primary">Arraste ou clique para selecionar</div>
+      <div class="hint">Relatório SIA, Títulos a Receber (.xls ou .xlsx)</div>
       <input type="file" accept=".xlsx,.xls" id="file-receber" />
     </label>
     <div class="file-info" id="info-receber"></div>
@@ -529,14 +314,14 @@
 </div>
 
 <section class="actions-bar">
-  <button class="btn" id="btn-process" disabled>Processar e salvar</button>
+  <button class="btn large" id="btn-process" disabled>Processar e salvar</button>
   <button class="btn btn-ghost" id="btn-clear">Limpar tudo</button>
 </section>
 
 <section class="summary-wrap" id="summary">
   <div class="summary-card">
     <div class="ico">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M20 6L9 17l-5-5"/>
       </svg>
     </div>
@@ -544,446 +329,365 @@
       <h3>Dados processados com sucesso</h3>
       <p id="summary-text">&nbsp;</p>
     </div>
-    <a href="index.html" class="btn-success">Ver fluxo de caixa →</a>
+    <a href="index.html" class="btn btn-success">Ver fluxo →</a>
   </div>
 </section>
-
-<div class="loading-overlay" id="loading">
-  <div class="spinner"></div>
-  <div class="text" id="loading-text">Processando…</div>
-</div>
 
 <footer>
   FILADÉLFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS
 </footer>
 
+<!-- Libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<script src="shared.js"></script>
+
 <script>
-const STORAGE_KEY = 'filadelfia_fluxo_caixa_v2';
+(function() {
+  'use strict';
+  const F = window.Filadelfia;
 
-/* ============================================================
-   PARSER SIA: detecta automaticamente cabeçalho e colunas
-   ============================================================ */
-const state = {
-  pagar: null,     // { filename, rows, titulos, periodMin, periodMax, colsFound }
-  receber: null,
-};
+  const COLUMN_CONFIG = {
+    pagar: {
+      dateCandidates: ['vencimento', 'dt vencimento', 'data vencimento', 'vcto', 'dt venc'],
+      entityCandidates: ['credor', 'fornecedor', 'razao social', 'nome'],
+      valueCandidates: ['valor parcela', 'valor', 'vlr parcela', 'vlr'],
+      docCandidates: ['titulo/parcela', 'titulo parcela', 'titulo', 'documento', 'num titulo', 'nº titulo', 'parcela'],
+      entityLabel: 'Credor/Fornecedor',
+    },
+    receber: {
+      dateCandidates: ['vencimento', 'dt vencimento', 'data vencimento', 'vcto', 'dt venc'],
+      entityCandidates: ['cliente', 'sacado', 'pagador', 'razao social', 'nome'],
+      valueCandidates: ['valor parcela', 'valor', 'vlr parcela', 'vlr'],
+      docCandidates: ['titulo/parcela', 'titulo parcela', 'titulo', 'documento', 'num titulo', 'nº titulo', 'parcela'],
+      entityLabel: 'Cliente',
+    },
+  };
 
-const fmtDate = d => d.toLocaleDateString('pt-BR');
-const fmtMoney = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const state = { pagar: null, receber: null };
+  const norm = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-/* Configuração de detecção por tipo */
-const COLUMN_CONFIG = {
-  pagar: {
-    dateCandidates: ['vencimento','dt vencimento','data vencimento','vcto','dt venc'],
-    entityCandidates: ['credor','fornecedor','razao social','nome'],
-    valueCandidates: ['valor parcela','valor','vlr parcela','vlr'],
-    docCandidates: ['titulo/parcela','titulo parcela','titulo','documento','num titulo','nº titulo','parcela'],
-    entityLabel: 'Credor/Fornecedor',
-  },
-  receber: {
-    dateCandidates: ['vencimento','dt vencimento','data vencimento','vcto','dt venc'],
-    entityCandidates: ['cliente','sacado','pagador','razao social','nome'],
-    valueCandidates: ['valor parcela','valor','vlr parcela','vlr'],
-    docCandidates: ['titulo/parcela','titulo parcela','titulo','documento','num titulo','nº titulo','parcela'],
-    entityLabel: 'Cliente',
-  },
-};
-
-function detectHeaderRow(aoa) {
-  // Procura linha que tem "Vencimento" e "Valor" ou similar
-  for (let i = 0; i < Math.min(aoa.length, 20); i++) {
-    const row = aoa[i];
-    if (!row) continue;
-    const cells = row.map(c => norm(c));
-    const hasVenc = cells.some(c => c.includes('vencimento'));
-    const hasValor = cells.some(c => c.includes('valor'));
-    if (hasVenc && hasValor) return i;
-  }
-  return -1;
-}
-
-function findColumn(headerRow, candidates) {
-  const normalized = headerRow.map(h => norm(h));
-  // Match exato primeiro
-  for (const cand of candidates) {
-    const c = norm(cand);
-    const idx = normalized.findIndex(h => h === c);
-    if (idx >= 0) return idx;
-  }
-  // Depois match parcial
-  for (const cand of candidates) {
-    const c = norm(cand);
-    const idx = normalized.findIndex(h => h.includes(c));
-    if (idx >= 0) return idx;
-  }
-  return -1;
-}
-
-function parseValue(v) {
-  if (v == null) return 0;
-  if (typeof v === 'number') return v;
-  let s = String(v).trim();
-  s = s.replace(/R\$\s?/gi, '').replace(/\s/g, '');
-  if (/,\d{1,2}$/.test(s)) {
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else {
-    s = s.replace(/,/g, '');
-  }
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
-}
-
-function parseDate(v) {
-  if (v == null || v === '') return null;
-  if (v instanceof Date) return isNaN(v) ? null : stripTime(v);
-  if (typeof v === 'number') {
-    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
-    return isNaN(d) ? null : stripTime(d);
-  }
-  const s = String(v).trim();
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  if (m) {
-    let [_, dd, mm, yy] = m;
-    if (yy.length === 2) yy = '20' + yy;
-    const d = new Date(+yy, +mm - 1, +dd);
-    return isNaN(d) ? null : stripTime(d);
-  }
-  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) {
-    const d = new Date(+m[1], +m[2] - 1, +m[3]);
-    return isNaN(d) ? null : stripTime(d);
-  }
-  const d = new Date(s);
-  return isNaN(d) ? null : stripTime(d);
-}
-function stripTime(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-/* Limpa o nome do fornecedor/cliente: remove o código inicial "000123-" */
-function cleanEntityName(name) {
-  const s = String(name || '').trim();
-  // Remove prefixo numérico do tipo "001771-" ou "0033-"
-  return s.replace(/^0*\d+\s*[-–]\s*/, '').trim() || s;
-}
-
-function parseFile(file, type) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: 'array', cellDates: true });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
-
-        const headerIdx = detectHeaderRow(aoa);
-        if (headerIdx < 0) {
-          reject(new Error('Não foi possível detectar o cabeçalho do relatório. Verifique se o arquivo contém as colunas Vencimento e Valor Parcela.'));
-          return;
-        }
-
-        const headers = aoa[headerIdx];
-        const cfg = COLUMN_CONFIG[type];
-
-        const dateCol = findColumn(headers, cfg.dateCandidates);
-        const entityCol = findColumn(headers, cfg.entityCandidates);
-        const valueCol = findColumn(headers, cfg.valueCandidates);
-        const docCol = findColumn(headers, cfg.docCandidates);
-
-        if (dateCol < 0 || valueCol < 0 || entityCol < 0) {
-          reject(new Error(`Não foi possível identificar as colunas obrigatórias (Vencimento, ${cfg.entityLabel}, Valor Parcela).`));
-          return;
-        }
-
-        const titulos = [];
-        let skipped = 0;
-        let periodMin = null, periodMax = null;
-
-        for (let i = headerIdx + 1; i < aoa.length; i++) {
-          const row = aoa[i];
-          if (!row) continue;
-          const d = parseDate(row[dateCol]);
-          const v = parseValue(row[valueCol]);
-          const name = cleanEntityName(row[entityCol]);
-          if (!d || v === 0 || !name) { skipped++; continue; }
-
-          const doc = docCol >= 0 ? String(row[docCol] || '').trim() : '';
-          const id = (type === 'pagar' ? 'P' : 'R') + i;
-          const tit = {
-            id,
-            documento: doc,
-            vencimento: dateKey(d),
-            valor: Math.abs(v),
-          };
-          if (type === 'pagar') tit.fornecedor = name;
-          else tit.cliente = name;
-
-          titulos.push(tit);
-          if (!periodMin || d < periodMin) periodMin = d;
-          if (!periodMax || d > periodMax) periodMax = d;
-        }
-
-        if (!titulos.length) {
-          reject(new Error('Nenhum título válido encontrado no arquivo.'));
-          return;
-        }
-
-        resolve({
-          filename: file.name,
-          totalRows: aoa.length - headerIdx - 1,
-          titulos,
-          skipped,
-          periodMin, periodMax,
-          totalValor: titulos.reduce((s, t) => s + t.valor, 0),
-          colsFound: {
-            headerRow: headerIdx + 1,
-            vencimento: headers[dateCol],
-            entidade: headers[entityCol],
-            valor: headers[valueCol],
-            documento: docCol >= 0 ? headers[docCol] : null,
-          },
-        });
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = () => reject(new Error('Erro ao ler arquivo.'));
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-/* ============================================================
-   UI
-   ============================================================ */
-document.getElementById('menu-toggle').addEventListener('click', () => {
-  document.getElementById('nav').classList.toggle('open');
-});
-
-function checkExisting() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return;
-  try {
-    const data = JSON.parse(saved);
-    const banner = document.getElementById('banner-existing');
-    const info = document.getElementById('banner-info');
-    const d = new Date(data.processedAt);
-    const months = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-    const dateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} às ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    info.textContent = `Processado em ${dateStr} · ${data.titulosPagar.length} títulos a pagar · ${data.titulosReceber.length} títulos a receber`;
-    banner.classList.remove('hidden');
-  } catch(e) {}
-}
-checkExisting();
-
-async function handleFile(file, type) {
-  if (!file) return;
-  showLoading(`Lendo ${type === 'pagar' ? 'contas a pagar' : 'contas a receber'}…`);
-  try {
-    const result = await parseFile(file, type);
-    state[type] = result;
-    renderFileInfo(type);
-    renderPreview(type);
-    updateProcessButton();
-    hideLoading();
-  } catch (err) {
-    hideLoading();
-    alert('Erro ao processar arquivo: ' + err.message);
-    console.error(err);
-  }
-}
-
-function renderFileInfo(type) {
-  const s = state[type];
-  const info = document.getElementById('info-' + type);
-  const status = document.getElementById('status-' + type);
-  const detected = document.getElementById('detected-' + type);
-
-  info.innerHTML = `
-    <div class="row"><span class="k">Arquivo</span><span class="v">${escapeHTML(s.filename)}</span></div>
-    <div class="row success"><span class="k">Títulos válidos</span><span class="v">${s.titulos.length.toLocaleString('pt-BR')}</span></div>
-    <div class="row ${s.skipped > 0 ? 'warning' : ''}"><span class="k">Linhas ignoradas</span><span class="v">${s.skipped}</span></div>
-    <div class="row"><span class="k">Valor total</span><span class="v">${fmtMoney(s.totalValor)}</span></div>
-    <div class="row"><span class="k">Período</span><span class="v">${fmtDate(s.periodMin)} a ${fmtDate(s.periodMax)}</span></div>
-  `;
-  info.classList.add('show');
-  status.textContent = 'Carregado';
-  status.classList.add('loaded');
-
-  detected.innerHTML = `
-    <strong>✓ Formato SIA reconhecido</strong>
-    <div class="row">Cabeçalho na linha ${s.colsFound.headerRow} · Vencimento: <em>${escapeHTML(s.colsFound.vencimento)}</em></div>
-    <div class="row">${type === 'pagar' ? 'Credor' : 'Cliente'}: <em>${escapeHTML(s.colsFound.entidade)}</em> · Valor: <em>${escapeHTML(s.colsFound.valor)}</em>${s.colsFound.documento ? ` · Título: <em>${escapeHTML(s.colsFound.documento)}</em>` : ''}</div>
-  `;
-  detected.classList.add('show');
-}
-
-function escapeHTML(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-function renderPreview(type) {
-  const wrap = document.getElementById('preview-' + type + '-wrap');
-  const container = document.getElementById('preview-' + type);
-  const countEl = document.getElementById('preview-' + type + '-count');
-  const s = state[type];
-
-  const entityKey = type === 'pagar' ? 'fornecedor' : 'cliente';
-  const entityLabel = type === 'pagar' ? 'Credor/Fornecedor' : 'Cliente';
-  const sample = s.titulos.slice(0, 30);
-
-  container.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Vencimento</th>
-          <th>${entityLabel}</th>
-          <th>Documento</th>
-          <th class="right">Valor</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${sample.map(t => {
-          const [y,m,d] = t.vencimento.split('-');
-          return `
-            <tr>
-              <td>${d}/${m}/${y}</td>
-              <td>${escapeHTML(t[entityKey])}</td>
-              <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);">${escapeHTML(t.documento || '—')}</td>
-              <td class="right money">${fmtMoney(t.valor)}</td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
-  `;
-  countEl.textContent = `mostrando ${sample.length} de ${s.titulos.length.toLocaleString('pt-BR')} títulos · total ${fmtMoney(s.totalValor)}`;
-  wrap.classList.add('show');
-}
-
-function setupDropZone(type) {
-  const input = document.getElementById('file-' + type);
-  const card = document.getElementById('card-' + type);
-  input.addEventListener('change', e => handleFile(e.target.files[0], type));
-  ['dragenter','dragover'].forEach(ev => card.addEventListener(ev, e => { e.preventDefault(); card.classList.add('dragging'); }));
-  ['dragleave','drop'].forEach(ev => card.addEventListener(ev, e => { e.preventDefault(); card.classList.remove('dragging'); }));
-  card.addEventListener('drop', e => {
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f, type);
-  });
-}
-setupDropZone('pagar');
-setupDropZone('receber');
-
-function updateProcessButton() {
-  document.getElementById('btn-process').disabled = !(state.pagar && state.receber);
-}
-
-function process() {
-  if (!state.pagar || !state.receber) return;
-  showLoading('Salvando dados…');
-
-  setTimeout(() => {
-    try {
-      // Período em comum entre os dois arquivos
-      const minCommon = new Date(Math.max(state.pagar.periodMin.getTime(), state.receber.periodMin.getTime()));
-      const maxCommon = new Date(Math.min(state.pagar.periodMax.getTime(), state.receber.periodMax.getTime()));
-
-      let periodWarning = '';
-      if (minCommon > maxCommon) {
-        hideLoading();
-        alert('Os dois arquivos não têm nenhum período em comum. Verifique as datas dos relatórios.');
-        return;
-      }
-
-      const minKey = dateKey(minCommon);
-      const maxKey = dateKey(maxCommon);
-
-      // Filtra só os títulos dentro do período em comum
-      const titulosPagar = state.pagar.titulos.filter(t => t.vencimento >= minKey && t.vencimento <= maxKey);
-      const titulosReceber = state.receber.titulos.filter(t => t.vencimento >= minKey && t.vencimento <= maxKey);
-
-      const payload = {
-        version: 2,
-        processedAt: new Date().toISOString(),
-        filenames: {
-          pagar: state.pagar.filename,
-          receber: state.receber.filename,
-        },
-        periodStart: minKey,
-        periodEnd: maxKey,
-        titulosPagar,
-        titulosReceber,
-        stats: {
-          pagarOriginal: state.pagar.titulos.length,
-          receberOriginal: state.receber.titulos.length,
-          pagarFiltrado: titulosPagar.length,
-          receberFiltrado: titulosReceber.length,
-        },
-      };
-
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      } catch (err) {
-        hideLoading();
-        alert('Erro ao salvar os dados. Possível limite de armazenamento excedido: ' + err.message);
-        return;
-      }
-
-      const totalPagar = titulosPagar.reduce((s, t) => s + t.valor, 0);
-      const totalReceber = titulosReceber.reduce((s, t) => s + t.valor, 0);
-      const net = totalReceber - totalPagar;
-
-      const fornecedores = new Set(titulosPagar.map(t => t.fornecedor)).size;
-      const clientes = new Set(titulosReceber.map(t => t.cliente)).size;
-
-      let summary = `<strong>Período em comum:</strong> ${fmtDate(minCommon)} a ${fmtDate(maxCommon)}.<br>`;
-      summary += `<strong>${titulosPagar.length}</strong> títulos a pagar (${fornecedores} fornecedores) · `;
-      summary += `<strong>${titulosReceber.length}</strong> a receber (${clientes} clientes).<br>`;
-      summary += `Entradas: <strong>${fmtMoney(totalReceber)}</strong> · `;
-      summary += `Saídas: <strong>${fmtMoney(totalPagar)}</strong> · `;
-      summary += `Saldo: <strong>${fmtMoney(net)}</strong>.`;
-
-      // Avisar se descartou títulos fora do período em comum
-      const pagarDescartado = state.pagar.titulos.length - titulosPagar.length;
-      const receberDescartado = state.receber.titulos.length - titulosReceber.length;
-      if (pagarDescartado > 0 || receberDescartado > 0) {
-        summary += `<br><span style="color:var(--warning);font-size:12px;">`;
-        if (pagarDescartado > 0) summary += `${pagarDescartado} título${pagarDescartado!==1?'s':''} a pagar fora do período em comum. `;
-        if (receberDescartado > 0) summary += `${receberDescartado} título${receberDescartado!==1?'s':''} a receber fora do período em comum.`;
-        summary += `</span>`;
-      }
-
-      document.getElementById('summary-text').innerHTML = summary;
-      document.getElementById('summary').classList.add('show');
-      document.getElementById('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      hideLoading();
-    } catch (err) {
-      hideLoading();
-      console.error(err);
-      alert('Erro ao processar: ' + err.message);
+  function detectHeaderRow(aoa) {
+    for (let i = 0; i < Math.min(aoa.length, 20); i++) {
+      const row = aoa[i];
+      if (!row) continue;
+      const cells = row.map(c => norm(c));
+      if (cells.some(c => c.includes('vencimento')) && cells.some(c => c.includes('valor'))) return i;
     }
-  }, 50);
-}
+    return -1;
+  }
 
-function clearAll() {
-  if (!confirm('Limpar todos os dados, incluindo os já processados?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
-}
+  function findColumn(headerRow, candidates) {
+    const normalized = headerRow.map(h => norm(h));
+    for (const cand of candidates) {
+      const c = norm(cand);
+      const idx = normalized.findIndex(h => h === c);
+      if (idx >= 0) return idx;
+    }
+    for (const cand of candidates) {
+      const c = norm(cand);
+      const idx = normalized.findIndex(h => h.includes(c));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  }
 
-function showLoading(text) {
-  document.getElementById('loading-text').textContent = text;
-  document.getElementById('loading').classList.add('open');
-}
-function hideLoading() {
-  document.getElementById('loading').classList.remove('open');
-}
+  function parseFile(file, type) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: 'array', cellDates: true });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
 
-document.getElementById('btn-process').addEventListener('click', process);
-document.getElementById('btn-clear').addEventListener('click', clearAll);
+          const headerIdx = detectHeaderRow(aoa);
+          if (headerIdx < 0) {
+            reject(new Error('Não foi possível detectar o cabeçalho. Verifique se o arquivo contém as colunas Vencimento e Valor Parcela.'));
+            return;
+          }
+
+          const headers = aoa[headerIdx];
+          const cfg = COLUMN_CONFIG[type];
+          const dateCol = findColumn(headers, cfg.dateCandidates);
+          const entityCol = findColumn(headers, cfg.entityCandidates);
+          const valueCol = findColumn(headers, cfg.valueCandidates);
+          const docCol = findColumn(headers, cfg.docCandidates);
+
+          if (dateCol < 0 || valueCol < 0 || entityCol < 0) {
+            reject(new Error(`Não foi possível identificar as colunas obrigatórias (Vencimento, ${cfg.entityLabel}, Valor Parcela).`));
+            return;
+          }
+
+          const titulos = [];
+          let skipped = 0;
+          let periodMin = null, periodMax = null;
+
+          for (let i = headerIdx + 1; i < aoa.length; i++) {
+            const row = aoa[i];
+            if (!row) continue;
+            const d = F.Dates.parseDate(row[dateCol]);
+            const v = F.Dates.parseValue(row[valueCol]);
+            const name = F.cleanEntityName(row[entityCol]);
+            if (!d || v === 0 || !name) { skipped++; continue; }
+            const doc = docCol >= 0 ? String(row[docCol] == null ? '' : row[docCol]).trim() : '';
+            const id = (type === 'pagar' ? 'P' : 'R') + i;
+            const tit = {
+              id,
+              documento: doc,
+              vencimento: F.Dates.dateKey(d),
+              valor: Math.abs(v),
+            };
+            if (type === 'pagar') tit.fornecedor = name;
+            else tit.cliente = name;
+            titulos.push(tit);
+            if (!periodMin || d < periodMin) periodMin = d;
+            if (!periodMax || d > periodMax) periodMax = d;
+          }
+
+          if (!titulos.length) {
+            reject(new Error('Nenhum título válido encontrado no arquivo.'));
+            return;
+          }
+
+          resolve({
+            filename: file.name,
+            titulos, skipped,
+            periodMin, periodMax,
+            totalValor: titulos.reduce((s, t) => s + t.valor, 0),
+            colsFound: {
+              headerRow: headerIdx + 1,
+              vencimento: headers[dateCol],
+              entidade: headers[entityCol],
+              valor: headers[valueCol],
+              documento: docCol >= 0 ? headers[docCol] : null,
+            },
+          });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Erro ao ler arquivo.'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  async function init() {
+    await F.Auth.requireAuth();
+    F.UI.renderTopbar('processamento');
+    checkExisting();
+    setupDropZone('pagar');
+    setupDropZone('receber');
+    document.getElementById('btn-process').addEventListener('click', processData);
+    document.getElementById('btn-clear').addEventListener('click', clearAll);
+  }
+
+  function checkExisting() {
+    const data = F.Storage.safeGetJSON(F.KEYS.DATA, null);
+    if (!data) return;
+    try {
+      const banner = document.getElementById('banner-existing');
+      const info = document.getElementById('banner-info');
+      const period = (data.periodStart && data.periodEnd)
+        ? `${F.Fmt.fmtFullDate(F.Dates.parseDateKey(data.periodStart))} a ${F.Fmt.fmtFullDate(F.Dates.parseDateKey(data.periodEnd))}`
+        : '—';
+      info.textContent = `Processado em ${F.Fmt.fmtDateTimeFull(new Date(data.processedAt))} · ${(data.titulosPagar || []).length} pagar · ${(data.titulosReceber || []).length} receber · período ${period}`;
+      banner.classList.remove('hidden');
+    } catch (e) { console.warn(e); }
+  }
+
+  async function handleFile(file, type) {
+    if (!file) return;
+    F.UI.showLoading(`Lendo ${type === 'pagar' ? 'contas a pagar' : 'contas a receber'}…`);
+    try {
+      const result = await parseFile(file, type);
+      state[type] = result;
+      renderFileInfo(type);
+      renderPreview(type);
+      updateProcessButton();
+    } catch (err) {
+      console.error(err);
+      F.UI.showToast(err.message, 'error');
+    } finally {
+      F.UI.hideLoading();
+    }
+  }
+
+  function renderFileInfo(type) {
+    const s = state[type];
+    const info = document.getElementById('info-' + type);
+    const status = document.getElementById('status-' + type);
+    const detected = document.getElementById('detected-' + type);
+
+    info.innerHTML = `
+      <div class="row"><span class="k">Arquivo</span><span class="v" title="${F.escapeHTML(s.filename)}">${F.escapeHTML(s.filename)}</span></div>
+      <div class="row success"><span class="k">Títulos válidos</span><span class="v">${s.titulos.length.toLocaleString('pt-BR')}</span></div>
+      <div class="row ${s.skipped > 0 ? 'warning' : ''}"><span class="k">Linhas ignoradas</span><span class="v">${s.skipped}</span></div>
+      <div class="row"><span class="k">Valor total</span><span class="v">${F.Fmt.fmtMoney(s.totalValor)}</span></div>
+      <div class="row"><span class="k">Período</span><span class="v">${F.Fmt.fmtFullDate(s.periodMin)} a ${F.Fmt.fmtFullDate(s.periodMax)}</span></div>
+    `;
+    info.classList.add('show');
+    status.textContent = 'Carregado';
+    status.classList.add('loaded');
+
+    detected.innerHTML = `
+      <strong>✓ Formato SIA reconhecido</strong>
+      <div class="row">Cabeçalho na linha ${s.colsFound.headerRow} · Vencimento: <em>${F.escapeHTML(s.colsFound.vencimento)}</em></div>
+      <div class="row">${type === 'pagar' ? 'Credor' : 'Cliente'}: <em>${F.escapeHTML(s.colsFound.entidade)}</em> · Valor: <em>${F.escapeHTML(s.colsFound.valor)}</em>${s.colsFound.documento ? ` · Título: <em>${F.escapeHTML(s.colsFound.documento)}</em>` : ''}</div>
+    `;
+    detected.classList.add('show');
+  }
+
+  function renderPreview(type) {
+    const wrap = document.getElementById('preview-' + type + '-wrap');
+    const container = document.getElementById('preview-' + type);
+    const countEl = document.getElementById('preview-' + type + '-count');
+    const s = state[type];
+
+    const entityKey = type === 'pagar' ? 'fornecedor' : 'cliente';
+    const entityLabel = type === 'pagar' ? 'Credor/Fornecedor' : 'Cliente';
+    const sample = s.titulos.slice(0, 30);
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Vencimento</th>
+            <th>${entityLabel}</th>
+            <th>Documento</th>
+            <th class="right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sample.map(t => {
+            const [y, m, d] = t.vencimento.split('-');
+            return `
+              <tr>
+                <td>${d}/${m}/${y}</td>
+                <td>${F.escapeHTML(t[entityKey])}</td>
+                <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);">${F.escapeHTML(t.documento || '—')}</td>
+                <td class="right money">${F.Fmt.fmtMoney(t.valor)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+    countEl.textContent = `mostrando ${sample.length} de ${s.titulos.length.toLocaleString('pt-BR')} títulos · total ${F.Fmt.fmtMoney(s.totalValor)}`;
+    wrap.classList.add('show');
+  }
+
+  function setupDropZone(type) {
+    const input = document.getElementById('file-' + type);
+    const card = document.getElementById('card-' + type);
+    input.addEventListener('change', e => handleFile(e.target.files[0], type));
+    ['dragenter', 'dragover'].forEach(ev =>
+      card.addEventListener(ev, e => { e.preventDefault(); card.classList.add('dragging'); })
+    );
+    ['dragleave', 'drop'].forEach(ev =>
+      card.addEventListener(ev, e => { e.preventDefault(); card.classList.remove('dragging'); })
+    );
+    card.addEventListener('drop', e => {
+      const f = e.dataTransfer.files[0];
+      if (f) handleFile(f, type);
+    });
+  }
+
+  function updateProcessButton() {
+    document.getElementById('btn-process').disabled = !(state.pagar && state.receber);
+  }
+
+  function processData() {
+    if (!state.pagar || !state.receber) return;
+    F.UI.showLoading('Salvando dados…');
+
+    setTimeout(() => {
+      try {
+        const minCommon = new Date(Math.max(state.pagar.periodMin.getTime(), state.receber.periodMin.getTime()));
+        const maxCommon = new Date(Math.min(state.pagar.periodMax.getTime(), state.receber.periodMax.getTime()));
+
+        if (minCommon > maxCommon) {
+          F.UI.hideLoading();
+          F.UI.showToast('Os dois arquivos não têm período em comum.', 'error');
+          return;
+        }
+
+        const minKey = F.Dates.dateKey(minCommon);
+        const maxKey = F.Dates.dateKey(maxCommon);
+        const titulosPagar = state.pagar.titulos.filter(t => t.vencimento >= minKey && t.vencimento <= maxKey);
+        const titulosReceber = state.receber.titulos.filter(t => t.vencimento >= minKey && t.vencimento <= maxKey);
+
+        const payload = {
+          version: 2,
+          processedAt: new Date().toISOString(),
+          processedBy: F.state.user?.displayName || F.state.user?.email || 'Desconhecido',
+          filenames: { pagar: state.pagar.filename, receber: state.receber.filename },
+          periodStart: minKey,
+          periodEnd: maxKey,
+          titulosPagar,
+          titulosReceber,
+          stats: {
+            pagarOriginal: state.pagar.titulos.length,
+            receberOriginal: state.receber.titulos.length,
+            pagarFiltrado: titulosPagar.length,
+            receberFiltrado: titulosReceber.length,
+          },
+        };
+
+        const r = F.Storage.safeSetJSON(F.KEYS.DATA, payload);
+        if (!r.ok) {
+          F.UI.hideLoading();
+          F.UI.showToast(r.error, 'error');
+          return;
+        }
+
+        const totalPagar = titulosPagar.reduce((s, t) => s + t.valor, 0);
+        const totalReceber = titulosReceber.reduce((s, t) => s + t.valor, 0);
+        const net = totalReceber - totalPagar;
+        const fornecedores = new Set(titulosPagar.map(t => t.fornecedor)).size;
+        const clientes = new Set(titulosReceber.map(t => t.cliente)).size;
+
+        let summary = `<strong>Período em comum:</strong> ${F.Fmt.fmtFullDate(minCommon)} a ${F.Fmt.fmtFullDate(maxCommon)}.<br>`;
+        summary += `<strong>${titulosPagar.length}</strong> títulos a pagar (${fornecedores} fornecedores) · `;
+        summary += `<strong>${titulosReceber.length}</strong> a receber (${clientes} clientes).<br>`;
+        summary += `Entradas: <strong>${F.Fmt.fmtMoney(totalReceber)}</strong> · Saídas: <strong>${F.Fmt.fmtMoney(totalPagar)}</strong> · Saldo: <strong>${F.Fmt.fmtMoney(net)}</strong>.`;
+
+        const pagarDescartado = state.pagar.titulos.length - titulosPagar.length;
+        const receberDescartado = state.receber.titulos.length - titulosReceber.length;
+        if (pagarDescartado > 0 || receberDescartado > 0) {
+          summary += `<br><span style="color:var(--warning);font-size:12px;">`;
+          if (pagarDescartado > 0) summary += `${pagarDescartado} a pagar fora do período em comum. `;
+          if (receberDescartado > 0) summary += `${receberDescartado} a receber fora do período em comum.`;
+          summary += `</span>`;
+        }
+
+        document.getElementById('summary-text').innerHTML = summary;
+        document.getElementById('summary').classList.add('show');
+        document.getElementById('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        F.UI.showToast('Dados salvos com sucesso', 'success');
+      } catch (err) {
+        console.error(err);
+        F.UI.showToast('Erro ao processar: ' + err.message, 'error');
+      } finally {
+        F.UI.hideLoading();
+      }
+    }, 50);
+  }
+
+  function clearAll() {
+    if (!confirm('Limpar todos os dados importados? Isso NÃO apaga seus lançamentos manuais nem a lixeira.')) return;
+    try { localStorage.removeItem(F.KEYS.DATA); } catch {}
+    location.reload();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
 </script>
 </body>
 </html>
