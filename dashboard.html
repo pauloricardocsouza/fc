@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Filadélfia — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .period-selector {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .preset-group {
+    display: inline-flex;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .preset-group button {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .preset-group button.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(28,167,236,0.3);
+  }
+  .date-range-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 3px 3px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .date-range-input span {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .date-range-input input {
+    width: auto;
+    padding: 7px 9px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid transparent;
+    background: var(--surface);
+  }
+  .date-range-input input:focus {
+    border-color: var(--accent);
+  }
+
+  .meta-row {
+    padding: 10px 28px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .meta-row strong { color: var(--text); font-weight: 700; }
+
+  .dash-wrap {
+    padding: 18px 28px 40px;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+  }
+
+  .kpi-big {
+    grid-column: span 3;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .kpi-big::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 80px; height: 80px;
+    background: radial-gradient(circle at top right, var(--accent-glow), transparent 70%);
+    pointer-events: none;
+  }
+  .kpi-big.out::after { background: radial-gradient(circle at top right, rgba(217,45,32,0.08), transparent 70%); }
+  .kpi-big.warn::after { background: radial-gradient(circle at top right, rgba(245,158,11,0.1), transparent 70%); }
+  .kpi-big .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .kpi-big .value {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-top: 8px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .kpi-big .value.in { color: var(--accent-text); }
+  .kpi-big .value.out { color: var(--danger-text); }
+  .kpi-big .value.positive { color: var(--accent-text); }
+  .kpi-big .value.negative { color: var(--danger-text); }
+  .kpi-big .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 5px;
+  }
+  .kpi-big .bar {
+    margin-top: 10px;
+    height: 4px;
+    background: var(--surface-3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .kpi-big .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s;
+  }
+  .kpi-big.out .bar-fill { background: var(--danger); }
+
+  .panel {
+    grid-column: span 6;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+  }
+  .panel .head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel .head h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .panel .head .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .panel .body {
+    padding: 14px 18px;
+    flex: 1;
+  }
+  .panel.span-4 { grid-column: span 4; }
+  .panel.span-8 { grid-column: span 8; }
+  .panel.span-12 { grid-column: span 12; }
+
+  /* Top list (fornecedores/clientes) */
+  .top-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .top-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .top-list li .rank {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    display: grid;
+    place-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .top-list li .rank.gold { background: #fef3c7; color: #92400e; }
+  .top-list li .rank.silver { background: #e5e7eb; color: #4b5563; }
+  .top-list li .rank.bronze { background: #fed7aa; color: #9a3412; }
+  .top-list li .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .top-list li .info .name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top-list li .info .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .top-list li .info .bar {
+    height: 4px;
+    background: var(--surface-2);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .top-list li .info .bar-fill {
+    height: 100%;
+    transition: width 0.3s;
+  }
+  .top-list li.out .bar-fill { background: var(--danger); }
+  .top-list li.in .bar-fill { background: var(--accent); }
+  .top-list li .value {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .top-list li.out .value { color: var(--danger-text); }
+  .top-list li.in .value { color: var(--accent-text); }
+
+  /* Days breakdown */
+  .days-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .day-stat {
+    padding: 14px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+  }
+  .day-stat.positive { background: var(--accent-bg); border-color: rgba(28,167,236,0.2); }
+  .day-stat.negative { background: var(--danger-bg); border-color: rgba(217,45,32,0.2); }
+  .day-stat.neutral { background: var(--surface-2); }
+  .day-stat .num {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .day-stat.positive .num { color: var(--accent-text); }
+  .day-stat.negative .num { color: var(--danger-text); }
+  .day-stat .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 3px;
+  }
+  .day-stat .pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 5px;
+    font-weight: 600;
+  }
+
+  /* Weekday chart */
+  .weekday-chart {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+  .weekday-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .weekday-col .bars-stack {
+    width: 100%;
+    height: 130px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    justify-content: center;
+  }
+  .weekday-col .bar-in {
+    flex: 1;
+    max-width: 14px;
+    background: var(--accent);
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: height 0.3s;
+    opacity: 0.85;
+  }
+  .weekday-col .bar-out {
+    flex: 1;
+    max-width: 14px;
+    background: var(--danger);
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: height 0.3s;
+    opacity: 0.85;
+  }
+  .weekday-col .day-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .weekday-col.weekend .day-label { color: var(--text-muted); opacity: 0.6; }
+
+  /* Line chart (evolução acumulada) */
+  .line-chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 200px;
+  }
+  .line-chart-wrap svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .line-chart-wrap .axis-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    fill: var(--text-muted);
+  }
+  .line-chart-wrap .grid-line {
+    stroke: var(--border);
+    stroke-dasharray: 2 3;
+    stroke-width: 1;
+  }
+  .line-chart-wrap .zero-line {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+  }
+  .line-chart-wrap .area-positive {
+    fill: rgba(28, 167, 236, 0.15);
+  }
+  .line-chart-wrap .area-negative {
+    fill: rgba(217, 45, 32, 0.12);
+  }
+  .line-chart-wrap .line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+  .line-chart-wrap .line.negative {
+    stroke: var(--danger);
+  }
+  .line-chart-wrap .point {
+    fill: var(--accent);
+    stroke: #fff;
+    stroke-width: 1.5;
+  }
+  .line-chart-wrap .point.negative {
+    fill: var(--danger);
+  }
+
+  /* Concentração */
+  .concentration {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .concentration .donut {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+  }
+  .concentration .donut svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .concentration .donut .center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .concentration .donut .center-text .pct {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .concentration .donut .center-text .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 3px;
+  }
+  .concentration .legend {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .concentration .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .concentration .legend-item .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .concentration .legend-item .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .concentration .legend-item .info .nm {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .concentration .legend-item .info .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Critical days list */
+  .critical-days {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .critical-day {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    border-left: 3px solid var(--border-strong);
+  }
+  .critical-day.deficit { border-left-color: var(--danger); background: var(--danger-bg); }
+  .critical-day.surplus { border-left-color: var(--accent); background: var(--accent-bg); }
+  .critical-day .date-box {
+    text-align: center;
+    padding: 6px 10px;
+    background: var(--surface);
+    border-radius: 6px;
+    min-width: 60px;
+    flex-shrink: 0;
+  }
+  .critical-day .date-box .d {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+  }
+  .critical-day .date-box .m {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .critical-day .info { flex: 1; min-width: 0; }
+  .critical-day .info .wd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .critical-day .info .det {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .critical-day .balance {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .critical-day.deficit .balance { color: var(--danger-text); }
+  .critical-day.surplus .balance { color: var(--accent-text); }
+
+  /* Empty state */
+  .dash-empty {
+    grid-column: span 12;
+    padding: 60px 20px;
+  }
+
+  @media (max-width: 1200px) {
+    .kpi-big { grid-column: span 6; }
+    .panel { grid-column: span 6; }
+    .panel.span-4 { grid-column: span 6; }
+    .panel.span-8 { grid-column: span 12; }
+  }
+  @media (max-width: 860px) {
+    .dash-wrap { padding: 14px 16px 30px; grid-template-columns: 1fr; gap: 12px; }
+    .kpi-big, .panel, .panel.span-4, .panel.span-8, .panel.span-12 { grid-column: span 1; }
+    .kpi-big .value { font-size: 22px; }
+    .concentration { flex-direction: column; align-items: center; text-align: center; }
+    .concentration .legend { width: 100%; }
+    .meta-row { padding: 10px 16px 0; }
+  }
+  @media (max-width: 560px) {
+    .days-grid { grid-template-columns: 1fr; }
+    .weekday-chart { gap: 4px; }
+    .weekday-col .day-label { font-size: 9px; }
+    .period-selector { flex-direction: column; align-items: stretch; }
+    .preset-group { overflow-x: auto; }
+    .date-range-input { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar"></header>
+
+<section class="page-head">
+  <div class="kicker">Dashboard</div>
+  <h1>Análise <span class="accent">estratégica</span></h1>
+  <p class="desc">Indicadores financeiros para tomada de decisão. Selecione o período de análise abaixo.</p>
+
+  <div class="period-selector">
+    <div class="preset-group" id="preset-group">
+      <button data-preset="7" class="active">Próximos 7 dias</button>
+      <button data-preset="14">14 dias</button>
+      <button data-preset="21">21 dias</button>
+      <button data-preset="custom">Personalizado</button>
+    </div>
+    <div class="date-range-input" id="custom-range" style="display:none;">
+      <input type="date" id="cust-start" />
+      <span>até</span>
+      <input type="date" id="cust-end" />
+      <button class="btn" id="btn-apply-custom" style="padding:7px 12px;">Aplicar</button>
+    </div>
+  </div>
+</section>
+
+<div class="meta-row" id="meta-row"></div>
+
+<main id="dash-main">
+  <div class="dash-wrap" id="dash-empty-wrap" style="display:none;">
+    <div class="empty-state dash-empty">
+      <div class="ico">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </div>
+      <h2>Sem dados para analisar</h2>
+      <p>Importe seus relatórios para começar a visualizar indicadores, ou ajuste o período selecionado.</p>
+      <a class="btn large" href="processamento.html">Importar relatórios</a>
+    </div>
+  </div>
+
+  <div class="dash-wrap" id="dash-content">
+    <!-- KPIs -->
+    <div class="kpi-big">
+      <div class="label">Total a Receber</div>
+      <div class="value in" id="kpi-in">–</div>
+      <div class="sub" id="kpi-in-sub">—</div>
+      <div class="bar"><div class="bar-fill" id="kpi-in-bar" style="width:0;"></div></div>
+    </div>
+    <div class="kpi-big out">
+      <div class="label">Total a Pagar</div>
+      <div class="value out" id="kpi-out">–</div>
+      <div class="sub" id="kpi-out-sub">—</div>
+      <div class="bar"><div class="bar-fill" id="kpi-out-bar" style="width:0;"></div></div>
+    </div>
+    <div class="kpi-big">
+      <div class="label">Saldo Líquido Projetado</div>
+      <div class="value" id="kpi-net">–</div>
+      <div class="sub" id="kpi-net-sub">—</div>
+      <div class="bar"><div class="bar-fill" id="kpi-net-bar" style="width:0;"></div></div>
+    </div>
+    <div class="kpi-big warn">
+      <div class="label">Cobertura de Caixa</div>
+      <div class="value" id="kpi-cover">–</div>
+      <div class="sub" id="kpi-cover-sub">—</div>
+      <div class="bar"><div class="bar-fill" id="kpi-cover-bar" style="width:0;"></div></div>
+    </div>
+
+    <!-- Dias positivos vs negativos -->
+    <div class="panel span-4">
+      <div class="head">
+        <div>
+          <h3>Distribuição de dias</h3>
+          <div class="sub">Período analisado</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="days-grid">
+          <div class="day-stat positive">
+            <div class="num" id="days-positive">0</div>
+            <div class="lbl">Positivos</div>
+            <div class="pct" id="days-positive-pct">—</div>
+          </div>
+          <div class="day-stat negative">
+            <div class="num" id="days-negative">0</div>
+            <div class="lbl">Negativos</div>
+            <div class="pct" id="days-negative-pct">—</div>
+          </div>
+          <div class="day-stat neutral">
+            <div class="num" id="days-neutral">0</div>
+            <div class="lbl">Neutros</div>
+            <div class="pct" id="days-neutral-pct">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evolução acumulada -->
+    <div class="panel span-8">
+      <div class="head">
+        <div>
+          <h3>Evolução do saldo acumulado</h3>
+          <div class="sub" id="line-chart-sub">—</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="line-chart-wrap" id="line-chart"></div>
+      </div>
+    </div>
+
+    <!-- Top Fornecedores -->
+    <div class="panel">
+      <div class="head">
+        <div>
+          <h3>Top 10 Fornecedores</h3>
+          <div class="sub">Maior valor a pagar no período</div>
+        </div>
+      </div>
+      <div class="body">
+        <ul class="top-list" id="top-fornecedores"></ul>
+      </div>
+    </div>
+
+    <!-- Top Clientes -->
+    <div class="panel">
+      <div class="head">
+        <div>
+          <h3>Top 10 Clientes</h3>
+          <div class="sub">Maior valor a receber no período</div>
+        </div>
+      </div>
+      <div class="body">
+        <ul class="top-list" id="top-clientes"></ul>
+      </div>
+    </div>
+
+    <!-- Concentração por fornecedor -->
+    <div class="panel span-4">
+      <div class="head">
+        <div>
+          <h3>Concentração</h3>
+          <div class="sub">Risco por fornecedor</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="concentration">
+          <div class="donut" id="donut-conc"></div>
+          <div class="legend" id="legend-conc"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Distribuição por dia da semana -->
+    <div class="panel span-8">
+      <div class="head">
+        <div>
+          <h3>Movimento por dia da semana</h3>
+          <div class="sub" id="weekday-sub">Média por dia</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="weekday-chart" id="weekday-chart"></div>
+        <div style="margin-top:12px;display:flex;gap:16px;font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">
+          <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent);"></span>Entradas</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--danger);"></span>Saídas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dias críticos -->
+    <div class="panel span-8">
+      <div class="head">
+        <div>
+          <h3>Dias críticos</h3>
+          <div class="sub">Maiores deficits e superavits do período</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="critical-days" id="critical-days"></div>
+      </div>
+    </div>
+
+    <!-- Resumo textual -->
+    <div class="panel span-4">
+      <div class="head">
+        <div>
+          <h3>Resumo do período</h3>
+          <div class="sub">Números-chave</div>
+        </div>
+      </div>
+      <div class="body" id="summary-numbers">
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  FILADÉLFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS
+</footer>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<script src="shared.js"></script>
+
+<script>
+(function() {
+  'use strict';
+  const F = window.Filadelfia;
+
+  /* ========== Estado ========== */
+  let dataStore = null;
+  let provisions = [];
+  let deletedImported = {};
+  let currentPreset = '7';
+  let currentStart = null;
+  let currentEnd = null;
+
+  /* ========== Init ========== */
+  async function init() {
+    await F.Auth.requireAuth();
+    F.UI.renderTopbar('dashboard');
+
+    loadData();
+    if (!hasData()) {
+      document.getElementById('dash-empty-wrap').style.display = 'grid';
+      document.getElementById('dash-content').style.display = 'none';
+      return;
+    }
+
+    setupControls();
+    applyPreset('7');
+  }
+
+  function loadData() {
+    dataStore = F.Storage.safeGetJSON(F.KEYS.DATA, null);
+    provisions = F.Storage.safeGetJSON(F.KEYS.PROVISIONS, []);
+    deletedImported = F.Storage.safeGetJSON(F.KEYS.DELETED_IMPORTED, {});
+  }
+
+  function hasData() {
+    const hasImp = dataStore && ((dataStore.titulosPagar || []).length + (dataStore.titulosReceber || []).length > 0);
+    return hasImp || provisions.length > 0;
+  }
+
+  function setupControls() {
+    document.querySelectorAll('#preset-group button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.preset === 'custom') {
+          showCustomRange();
+        } else {
+          hideCustomRange();
+          applyPreset(btn.dataset.preset);
+        }
+        document.querySelectorAll('#preset-group button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    document.getElementById('btn-apply-custom').addEventListener('click', applyCustomRange);
+  }
+
+  function showCustomRange() {
+    document.getElementById('custom-range').style.display = 'flex';
+    const today = new Date();
+    document.getElementById('cust-start').value = F.Dates.dateKey(today);
+    document.getElementById('cust-end').value = F.Dates.dateKey(F.Dates.addDays(today, 6));
+  }
+  function hideCustomRange() {
+    document.getElementById('custom-range').style.display = 'none';
+  }
+
+  function applyPreset(preset) {
+    currentPreset = preset;
+    const n = parseInt(preset, 10);
+    const today = F.Dates.stripTime(new Date());
+    currentStart = F.Dates.dateKey(today);
+    currentEnd = F.Dates.dateKey(F.Dates.addDays(today, n - 1));
+    render();
+  }
+
+  function applyCustomRange() {
+    const s = document.getElementById('cust-start').value;
+    const e = document.getElementById('cust-end').value;
+    if (!s || !e) { F.UI.showToast('Selecione as duas datas', 'error'); return; }
+    if (s > e) { F.UI.showToast('Data inicial deve ser anterior à final', 'error'); return; }
+    currentStart = s;
+    currentEnd = e;
+    currentPreset = 'custom';
+    render();
+  }
+
+  /* ========== Agregação por período ========== */
+  function aggregateData() {
+    const pagar = [];
+    const receber = [];
+
+    (dataStore?.titulosPagar || []).forEach(t => {
+      if (!deletedImported[t.id]) pagar.push({ ...t, _manual: false });
+    });
+    (dataStore?.titulosReceber || []).forEach(t => {
+      if (!deletedImported[t.id]) receber.push({ ...t, _manual: false });
+    });
+    provisions.forEach(p => {
+      const tit = {
+        id: p.id,
+        documento: p.documento || '',
+        vencimento: p.vencimento,
+        valor: p.valor,
+        _manual: true,
+      };
+      if (p.tipo === 'pagar') {
+        tit.fornecedor = p.entidade;
+        pagar.push(tit);
+      } else {
+        tit.cliente = p.entidade;
+        receber.push(tit);
+      }
+    });
+
+    // Agrupar por data efetiva (visão padrão do dashboard)
+    const byDate = {};
+    const allDates = [];
+
+    const cs = currentStart;
+    const ce = currentEnd;
+
+    function addDate(k) {
+      if (!byDate[k]) { byDate[k] = { in: 0, out: 0, net: 0, pagarList: [], receberList: [] }; allDates.push(k); }
+    }
+
+    pagar.forEach(t => {
+      const due = F.Dates.parseDateKey(t.vencimento);
+      const eff = F.Dates.effectiveDatePagar(due);
+      const k = F.Dates.dateKey(eff);
+      if (k < cs || k > ce) return;
+      addDate(k);
+      byDate[k].out += t.valor;
+      byDate[k].pagarList.push(t);
+    });
+
+    receber.forEach(t => {
+      const due = F.Dates.parseDateKey(t.vencimento);
+      const eff = F.Dates.effectiveDateReceber(due);
+      const k = F.Dates.dateKey(eff);
+      if (k < cs || k > ce) return;
+      addDate(k);
+      byDate[k].in += t.valor;
+      byDate[k].receberList.push(t);
+    });
+
+    // Garante que todas as datas do período apareçam, mesmo sem movimento
+    const startD = F.Dates.parseDateKey(cs);
+    const endD = F.Dates.parseDateKey(ce);
+    for (let d = new Date(startD); d <= endD; d = F.Dates.addDays(d, 1)) {
+      addDate(F.Dates.dateKey(d));
+    }
+
+    allDates.sort();
+    allDates.forEach(k => byDate[k].net = byDate[k].in - byDate[k].out);
+
+    // Top fornecedores (apenas pagar)
+    const fornMap = new Map();
+    pagar.forEach(t => {
+      const due = F.Dates.parseDateKey(t.vencimento);
+      const eff = F.Dates.effectiveDatePagar(due);
+      const k = F.Dates.dateKey(eff);
+      if (k < cs || k > ce) return;
+      if (!fornMap.has(t.fornecedor)) fornMap.set(t.fornecedor, { total: 0, count: 0 });
+      const entry = fornMap.get(t.fornecedor);
+      entry.total += t.valor;
+      entry.count++;
+    });
+    const topFornecedores = [...fornMap.entries()]
+      .map(([name, e]) => ({ name, total: e.total, count: e.count }))
+      .sort((a, b) => b.total - a.total);
+
+    // Top clientes
+    const cliMap = new Map();
+    receber.forEach(t => {
+      const due = F.Dates.parseDateKey(t.vencimento);
+      const eff = F.Dates.effectiveDateReceber(due);
+      const k = F.Dates.dateKey(eff);
+      if (k < cs || k > ce) return;
+      if (!cliMap.has(t.cliente)) cliMap.set(t.cliente, { total: 0, count: 0 });
+      const entry = cliMap.get(t.cliente);
+      entry.total += t.valor;
+      entry.count++;
+    });
+    const topClientes = [...cliMap.entries()]
+      .map(([name, e]) => ({ name, total: e.total, count: e.count }))
+      .sort((a, b) => b.total - a.total);
+
+    return { byDate, allDates, topFornecedores, topClientes };
+  }
+
+  /* ========== Render principal ========== */
+  function render() {
+    const agg = aggregateData();
+    if (!agg.allDates.length) {
+      F.UI.showToast('Período sem dados', 'warning');
+      return;
+    }
+
+    renderMeta();
+    renderKPIs(agg);
+    renderDaysDistribution(agg);
+    renderLineChart(agg);
+    renderTopList('top-fornecedores', agg.topFornecedores, 'out');
+    renderTopList('top-clientes', agg.topClientes, 'in');
+    renderConcentration(agg.topFornecedores);
+    renderWeekdayChart(agg);
+    renderCriticalDays(agg);
+    renderSummaryNumbers(agg);
+  }
+
+  function renderMeta() {
+    const el = document.getElementById('meta-row');
+    const s = F.Dates.parseDateKey(currentStart);
+    const e = F.Dates.parseDateKey(currentEnd);
+    const days = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+    let periodLabel = '';
+    if (currentPreset !== 'custom') {
+      periodLabel = `Próximos ${days} dias`;
+    } else {
+      periodLabel = `Período personalizado`;
+    }
+    el.innerHTML = `
+      <span><strong>${periodLabel}:</strong> ${F.Fmt.fmtFullDate(s)} a ${F.Fmt.fmtFullDate(e)}</span>
+      <span>·</span>
+      <span>${days} dia${days !== 1 ? 's' : ''}</span>
+    `;
+  }
+
+  function renderKPIs(agg) {
+    let totalIn = 0, totalOut = 0;
+    agg.allDates.forEach(k => { totalIn += agg.byDate[k].in; totalOut += agg.byDate[k].out; });
+    const net = totalIn - totalOut;
+    const cover = totalOut > 0 ? (totalIn / totalOut) * 100 : (totalIn > 0 ? 999 : 0);
+    const daysWithIn = agg.allDates.filter(k => agg.byDate[k].in > 0).length;
+    const daysWithOut = agg.allDates.filter(k => agg.byDate[k].out > 0).length;
+
+    document.getElementById('kpi-in').textContent = F.Fmt.fmtMoney(totalIn);
+    document.getElementById('kpi-out').textContent = F.Fmt.fmtMoney(totalOut);
+    const netEl = document.getElementById('kpi-net');
+    netEl.textContent = F.Fmt.fmtMoney(net);
+    netEl.className = 'value ' + (net >= 0 ? 'positive' : 'negative');
+
+    document.getElementById('kpi-in-sub').textContent = `em ${daysWithIn} dia${daysWithIn !== 1 ? 's' : ''}`;
+    document.getElementById('kpi-out-sub').textContent = `em ${daysWithOut} dia${daysWithOut !== 1 ? 's' : ''}`;
+    document.getElementById('kpi-net-sub').textContent = net >= 0 ? 'Superavit projetado' : 'Deficit projetado';
+
+    const coverEl = document.getElementById('kpi-cover');
+    if (cover >= 999) coverEl.textContent = '∞';
+    else coverEl.textContent = Math.round(cover) + '%';
+    coverEl.className = 'value ' + (cover >= 100 ? 'positive' : 'negative');
+    document.getElementById('kpi-cover-sub').textContent =
+      cover >= 120 ? 'Excelente' : cover >= 100 ? 'Adequada' : cover >= 80 ? 'Atenção' : 'Crítica';
+
+    // Barras de progresso
+    const maxVal = Math.max(totalIn, totalOut, 1);
+    document.getElementById('kpi-in-bar').style.width = (totalIn / maxVal * 100) + '%';
+    document.getElementById('kpi-out-bar').style.width = (totalOut / maxVal * 100) + '%';
+    const netBar = document.getElementById('kpi-net-bar');
+    netBar.style.width = Math.min(Math.abs(net) / maxVal * 100, 100) + '%';
+    netBar.style.background = net >= 0 ? 'var(--accent)' : 'var(--danger)';
+    const coverBar = document.getElementById('kpi-cover-bar');
+    coverBar.style.width = Math.min(cover, 100) + '%';
+    coverBar.style.background = cover >= 100 ? 'var(--accent)' : 'var(--danger)';
+  }
+
+  function renderDaysDistribution(agg) {
+    let pos = 0, neg = 0, neu = 0;
+    agg.allDates.forEach(k => {
+      const n = agg.byDate[k].net;
+      if (Math.abs(n) < 0.005) neu++;
+      else if (n > 0) pos++;
+      else neg++;
+    });
+    const total = agg.allDates.length;
+    document.getElementById('days-positive').textContent = pos;
+    document.getElementById('days-negative').textContent = neg;
+    document.getElementById('days-neutral').textContent = neu;
+    document.getElementById('days-positive-pct').textContent = total > 0 ? Math.round(pos / total * 100) + '% do período' : '—';
+    document.getElementById('days-negative-pct').textContent = total > 0 ? Math.round(neg / total * 100) + '% do período' : '—';
+    document.getElementById('days-neutral-pct').textContent = total > 0 ? Math.round(neu / total * 100) + '% do período' : '—';
+  }
+
+  /* ========== Line chart SVG ========== */
+  function renderLineChart(agg) {
+    const container = document.getElementById('line-chart');
+    const dates = agg.allDates;
+    if (!dates.length) { container.innerHTML = ''; return; }
+
+    let acc = 0;
+    const points = dates.map(k => {
+      acc += agg.byDate[k].net;
+      return { date: k, value: acc };
+    });
+
+    document.getElementById('line-chart-sub').textContent =
+      `Final: ${F.Fmt.fmtMoney(acc)} · ${points.length} pontos`;
+
+    const width = container.clientWidth || 600;
+    const height = 200;
+    const padL = 60, padR = 14, padT = 14, padB = 26;
+    const innerW = width - padL - padR;
+    const innerH = height - padT - padB;
+
+    const values = points.map(p => p.value);
+    let maxV = Math.max(...values, 0);
+    let minV = Math.min(...values, 0);
+    if (maxV === minV) { maxV += 1; minV -= 1; }
+    // Adicionar 10% de folga
+    const range = maxV - minV;
+    maxV += range * 0.05;
+    minV -= range * 0.05;
+
+    const xAt = i => padL + (points.length > 1 ? i * innerW / (points.length - 1) : innerW / 2);
+    const yAt = v => padT + (maxV - v) / (maxV - minV) * innerH;
+    const yZero = yAt(0);
+
+    // Gerar path
+    const pathParts = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xAt(i).toFixed(1)},${yAt(p.value).toFixed(1)}`);
+    const linePath = pathParts.join(' ');
+    const areaPath = linePath + ` L${xAt(points.length - 1).toFixed(1)},${yZero.toFixed(1)} L${xAt(0).toFixed(1)},${yZero.toFixed(1)} Z`;
+
+    // Labels eixo Y (3 níveis)
+    const yLabels = [maxV, (maxV + minV) / 2, minV].map(v => ({
+      y: yAt(v),
+      v: F.Fmt.fmtMoneyShort(v),
+    }));
+
+    // Labels eixo X (primeiro, meio, último)
+    const xLabelIndices = points.length <= 7
+      ? points.map((_, i) => i)
+      : [0, Math.floor(points.length / 2), points.length - 1];
+    const xLabels = xLabelIndices.map(i => ({
+      x: xAt(i),
+      label: F.Fmt.fmtHeaderDate(F.Dates.parseDateKey(points[i].date)),
+    }));
+
+    const pointsSvg = points.map((p, i) =>
+      `<circle class="point ${p.value < 0 ? 'negative' : ''}" cx="${xAt(i).toFixed(1)}" cy="${yAt(p.value).toFixed(1)}" r="3"/>`
+    ).join('');
+
+    const finalClass = acc < 0 ? 'negative' : '';
+    const finalAreaClass = acc < 0 ? 'area-negative' : 'area-positive';
+
+    container.innerHTML = `
+      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+        ${yLabels.map(l => `<line class="grid-line" x1="${padL}" y1="${l.y.toFixed(1)}" x2="${width - padR}" y2="${l.y.toFixed(1)}"/>`).join('')}
+        ${yZero >= padT && yZero <= padT + innerH ? `<line class="zero-line" x1="${padL}" y1="${yZero.toFixed(1)}" x2="${width - padR}" y2="${yZero.toFixed(1)}"/>` : ''}
+        <path class="${finalAreaClass}" d="${areaPath}"/>
+        <path class="line ${finalClass}" d="${linePath}"/>
+        ${pointsSvg}
+        ${yLabels.map(l => `<text class="axis-label" x="${padL - 6}" y="${(l.y + 3).toFixed(1)}" text-anchor="end">${l.v}</text>`).join('')}
+        ${xLabels.map(l => `<text class="axis-label" x="${l.x.toFixed(1)}" y="${height - 8}" text-anchor="middle">${l.label}</text>`).join('')}
+      </svg>
+    `;
+  }
+
+  /* ========== Top list ========== */
+  function renderTopList(elId, list, kind) {
+    const el = document.getElementById(elId);
+    const top10 = list.slice(0, 10);
+    const maxTotal = top10[0]?.total || 1;
+
+    if (!top10.length) {
+      el.innerHTML = '<li style="padding:20px 0;color:var(--text-muted);font-size:12px;text-align:center;">Nenhum dado no período</li>';
+      return;
+    }
+
+    const totalAll = list.reduce((s, e) => s + e.total, 0);
+
+    el.innerHTML = top10.map((e, i) => {
+      const rankCls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+      const pct = totalAll > 0 ? (e.total / totalAll * 100).toFixed(1) : 0;
+      const barW = (e.total / maxTotal * 100).toFixed(1);
+      return `
+        <li class="${kind}">
+          <div class="rank ${rankCls}">${i + 1}</div>
+          <div class="info">
+            <div class="name" title="${F.escapeHTML(e.name)}">${F.escapeHTML(e.name)}</div>
+            <div class="meta">${e.count} título${e.count !== 1 ? 's' : ''} · ${pct}% do total</div>
+            <div class="bar"><div class="bar-fill" style="width:${barW}%;"></div></div>
+          </div>
+          <div class="value">${F.Fmt.fmtMoney(e.total)}</div>
+        </li>
+      `;
+    }).join('');
+  }
+
+  /* ========== Concentração (donut top 3 vs resto) ========== */
+  function renderConcentration(fornecedores) {
+    const donut = document.getElementById('donut-conc');
+    const legend = document.getElementById('legend-conc');
+
+    if (!fornecedores.length) {
+      donut.innerHTML = '';
+      legend.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Sem dados</div>';
+      return;
+    }
+
+    const total = fornecedores.reduce((s, f) => s + f.total, 0);
+    const top3 = fornecedores.slice(0, 3);
+    const top3Sum = top3.reduce((s, f) => s + f.total, 0);
+    const top3Pct = total > 0 ? (top3Sum / total * 100) : 0;
+    const restSum = total - top3Sum;
+
+    // Donut: top3 em tons de danger, rest em border-strong
+    const r = 50, cx = 70, cy = 70;
+    const circ = 2 * Math.PI * r;
+    let offset = 0;
+    const segments = [];
+    const colors = ['#d92d20', '#f87171', '#fca5a5'];
+    top3.forEach((f, i) => {
+      const pct = total > 0 ? f.total / total : 0;
+      const len = pct * circ;
+      segments.push({
+        color: colors[i],
+        dash: `${len} ${circ}`,
+        offset,
+      });
+      offset += len;
+    });
+    if (restSum > 0) {
+      const pct = restSum / total;
+      const len = pct * circ;
+      segments.push({
+        color: '#c9d0da',
+        dash: `${len} ${circ}`,
+        offset,
+      });
+    }
+
+    donut.innerHTML = `
+      <svg viewBox="0 0 140 140">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f5f7fa" stroke-width="18"/>
+        ${segments.map(s =>
+          `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="18" stroke-dasharray="${s.dash}" stroke-dashoffset="${-s.offset}"/>`
+        ).join('')}
+      </svg>
+      <div class="center-text">
+        <div class="pct">${Math.round(top3Pct)}%</div>
+        <div class="lbl">Top 3</div>
+      </div>
+    `;
+
+    legend.innerHTML = top3.map((f, i) => `
+      <div class="legend-item">
+        <div class="dot" style="background:${colors[i]};"></div>
+        <div class="info">
+          <div class="nm" title="${F.escapeHTML(f.name)}">${F.escapeHTML(f.name)}</div>
+          <div class="val">${F.Fmt.fmtMoney(f.total)} · ${total > 0 ? (f.total / total * 100).toFixed(1) : 0}%</div>
+        </div>
+      </div>
+    `).join('') + (restSum > 0 ? `
+      <div class="legend-item">
+        <div class="dot" style="background:#c9d0da;"></div>
+        <div class="info">
+          <div class="nm">Demais ${fornecedores.length - 3} fornecedor${fornecedores.length - 3 !== 1 ? 'es' : ''}</div>
+          <div class="val">${F.Fmt.fmtMoney(restSum)} · ${total > 0 ? (restSum / total * 100).toFixed(1) : 0}%</div>
+        </div>
+      </div>
+    ` : '');
+  }
+
+  /* ========== Weekday chart ========== */
+  function renderWeekdayChart(agg) {
+    const chart = document.getElementById('weekday-chart');
+    const days = [0, 0, 0, 0, 0, 0, 0].map(() => ({ in: 0, out: 0, count: 0 }));
+    agg.allDates.forEach(k => {
+      const d = F.Dates.parseDateKey(k);
+      const wd = d.getDay();
+      days[wd].in += agg.byDate[k].in;
+      days[wd].out += agg.byDate[k].out;
+      days[wd].count++;
+    });
+
+    // Médias (por ocorrência)
+    const avgs = days.map(d => ({
+      avgIn: d.count > 0 ? d.in / d.count : 0,
+      avgOut: d.count > 0 ? d.out / d.count : 0,
+    }));
+    const maxVal = Math.max(...avgs.flatMap(a => [a.avgIn, a.avgOut]), 1);
+
+    const labels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    chart.innerHTML = labels.map((lbl, i) => {
+      const a = avgs[i];
+      const hIn = (a.avgIn / maxVal * 100).toFixed(1);
+      const hOut = (a.avgOut / maxVal * 100).toFixed(1);
+      const isWE = i === 0 || i === 6;
+      return `
+        <div class="weekday-col ${isWE ? 'weekend' : ''}">
+          <div class="bars-stack">
+            <div class="bar-in" style="height:${hIn}%;" title="Entrada média: ${F.Fmt.fmtMoney(a.avgIn)}"></div>
+            <div class="bar-out" style="height:${hOut}%;" title="Saída média: ${F.Fmt.fmtMoney(a.avgOut)}"></div>
+          </div>
+          <div class="day-label">${lbl}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /* ========== Dias críticos ========== */
+  function renderCriticalDays(agg) {
+    const container = document.getElementById('critical-days');
+    const entries = agg.allDates.map(k => ({
+      key: k,
+      net: agg.byDate[k].net,
+      in: agg.byDate[k].in,
+      out: agg.byDate[k].out,
+    })).filter(e => e.in > 0 || e.out > 0);
+
+    if (!entries.length) {
+      container.innerHTML = '<div style="padding:20px 0;color:var(--text-muted);font-size:12px;text-align:center;">Nenhum movimento no período</div>';
+      return;
+    }
+
+    // Top 3 deficits + Top 3 superavits
+    const deficits = entries.filter(e => e.net < 0).sort((a, b) => a.net - b.net).slice(0, 3);
+    const surplus = entries.filter(e => e.net > 0).sort((a, b) => b.net - a.net).slice(0, 2);
+    const selected = [...deficits, ...surplus].sort((a, b) => a.key < b.key ? -1 : 1);
+
+    const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    container.innerHTML = selected.map(e => {
+      const d = F.Dates.parseDateKey(e.key);
+      const cls = e.net < 0 ? 'deficit' : 'surplus';
+      return `
+        <div class="critical-day ${cls}">
+          <div class="date-box">
+            <div class="d">${d.getDate()}</div>
+            <div class="m">${months[d.getMonth()]}</div>
+          </div>
+          <div class="info">
+            <div class="wd">${F.Fmt.weekdayFull(d)}</div>
+            <div class="det">
+              Entradas: <strong>${F.Fmt.fmtMoney(e.in)}</strong> ·
+              Saídas: <strong>${F.Fmt.fmtMoney(e.out)}</strong>
+            </div>
+          </div>
+          <div class="balance">${F.Fmt.fmtMoney(e.net)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /* ========== Resumo numérico ========== */
+  function renderSummaryNumbers(agg) {
+    const el = document.getElementById('summary-numbers');
+    const entries = agg.allDates.map(k => ({ key: k, ...agg.byDate[k] }));
+
+    let totalIn = 0, totalOut = 0;
+    entries.forEach(e => { totalIn += e.in; totalOut += e.out; });
+
+    const avgDailyIn = totalIn / entries.length;
+    const avgDailyOut = totalOut / entries.length;
+    const biggestIn = entries.reduce((m, e) => e.in > m.in ? e : m, { in: 0 });
+    const biggestOut = entries.reduce((m, e) => e.out > m.out ? e : m, { out: 0 });
+
+    const fornCount = agg.topFornecedores.length;
+    const cliCount = agg.topClientes.length;
+
+    const rows = [
+      { lbl: 'Entrada média / dia', val: F.Fmt.fmtMoney(avgDailyIn), cls: 'in' },
+      { lbl: 'Saída média / dia', val: F.Fmt.fmtMoney(avgDailyOut), cls: 'out' },
+      { lbl: 'Maior entrada em 1 dia', val: F.Fmt.fmtMoney(biggestIn.in || 0), cls: 'in' },
+      { lbl: 'Maior saída em 1 dia', val: F.Fmt.fmtMoney(biggestOut.out || 0), cls: 'out' },
+      { lbl: 'Fornecedores ativos', val: fornCount.toString(), cls: '' },
+      { lbl: 'Clientes ativos', val: cliCount.toString(), cls: '' },
+    ];
+
+    el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${rows.map(r => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:12px;color:var(--text-dim);">${r.lbl}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;${r.cls === 'in' ? 'color:var(--accent-text);' : r.cls === 'out' ? 'color:var(--danger-text);' : 'color:var(--text);'}">${r.val}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
