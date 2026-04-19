@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Filadélfia — Entrar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background:
+      radial-gradient(800px 500px at 80% 20%, rgba(28,167,236,0.1), transparent 60%),
+      radial-gradient(600px 400px at 20% 80%, rgba(28,167,236,0.06), transparent 60%),
+      var(--bg);
+  }
+  .login-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 10px 40px rgba(10,14,22,0.08);
+  }
+  .login-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .login-logo {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 20px;
+    background: var(--brand-black);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    box-shadow: 0 6px 20px rgba(10,14,22,0.15);
+  }
+  .login-logo svg { width: 100%; height: 100%; display: block; }
+  .login-header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .login-header .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+  .form-group {
+    margin-bottom: 16px;
+  }
+  .form-group label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .form-group input {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .password-wrap {
+    position: relative;
+  }
+  .password-wrap button {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .password-wrap button:hover { color: var(--text); }
+  .remember-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 10px;
+  }
+  .remember-row label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+  }
+  .remember-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .btn-login {
+    width: 100%;
+    padding: 14px;
+    font-size: 15px;
+    justify-content: center;
+  }
+  .error-message {
+    background: var(--danger-bg);
+    border: 1px solid rgba(217,45,32,0.25);
+    color: var(--danger-text);
+    padding: 10px 14px;
+    border-radius: 7px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .error-message.show { display: block; }
+  .warning-banner {
+    background: var(--warning-bg);
+    border: 1px solid rgba(245,158,11,0.3);
+    color: var(--warning);
+    padding: 10px 14px;
+    border-radius: 7px;
+    font-size: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .warning-banner svg { flex-shrink: 0; margin-top: 2px; }
+  .login-footer {
+    margin-top: 24px;
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .help-text {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 16px;
+  }
+
+  @media (max-width: 480px) {
+    .login-card { padding: 28px 22px; }
+    .login-header h1 { font-size: 22px; }
+    .login-logo { width: 60px; height: 60px; padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<main class="login-wrap">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+          <path d="M 55 58 L 172 58 Q 185 58 185 71 L 185 88 Q 185 101 172 101 L 118 101 L 118 128 Q 118 140 105 140 L 92 140 Q 79 140 79 128 L 79 71 Q 79 58 92 58 Z" fill="#ffffff"/>
+          <path d="M 82 115 L 199 115 Q 212 115 212 128 L 212 145 Q 212 158 199 158 L 145 158 L 145 185 Q 145 197 132 197 L 119 197 Q 106 197 106 185 L 106 128 Q 106 115 119 115 Z" fill="#1CA7EC"/>
+        </svg>
+      </div>
+      <h1>Filadélfia</h1>
+      <div class="sub">Sistema Financeiro</div>
+    </div>
+
+    <div class="warning-banner hidden" id="demo-warning">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>
+        <strong>Firebase não configurado.</strong> Edite <code>shared.js</code> com suas credenciais.
+        O sistema funcionará em modo demonstração (sem sincronização entre usuários).
+      </div>
+    </div>
+
+    <div class="error-message" id="error-msg"></div>
+
+    <form id="login-form" novalidate>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="username" required placeholder="seu.email@filadelfia.com" />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Senha</label>
+        <div class="password-wrap">
+          <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••" />
+          <button type="button" id="toggle-password" aria-label="Mostrar senha" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="remember-row">
+        <label>
+          <input type="checkbox" id="remember" />
+          <span>Lembrar meus dados neste dispositivo</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-login">
+        <span id="btn-login-text">Entrar</span>
+        <svg id="btn-login-spinner" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5" stroke-opacity="0.25"/>
+          <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
+          </path>
+        </svg>
+      </button>
+
+      <div class="help-text">
+        Precisa de acesso? Contate o administrador do sistema.
+      </div>
+    </form>
+
+    <div class="login-footer">
+      Desenvolvido por R2 Soluções Empresariais
+    </div>
+  </div>
+</main>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="shared.js"></script>
+
+<script>
+(function() {
+  'use strict';
+  const F = window.Filadelfia;
+
+  // Se Firebase não configurado, mostra aviso
+  if (!F.IS_FIREBASE_CONFIGURED) {
+    document.getElementById('demo-warning').classList.remove('hidden');
+  } else {
+    F.initFirebase();
+    // Se já estiver logado, redireciona direto
+    F.state.fbAuth.onAuthStateChanged(user => {
+      if (user) {
+        const params = new URLSearchParams(location.search);
+        const returnTo = params.get('return') || 'index.html';
+        location.href = returnTo;
+      }
+    });
+  }
+
+  // Preencher email lembrado
+  const rememberedEmail = F.Storage.safeGetItem(F.KEYS.REMEMBER_LOGIN, '');
+  if (rememberedEmail) {
+    document.getElementById('email').value = rememberedEmail;
+    document.getElementById('remember').checked = true;
+    setTimeout(() => document.getElementById('password').focus(), 100);
+  } else {
+    setTimeout(() => document.getElementById('email').focus(), 100);
+  }
+
+  // Toggle senha
+  const togglePwdBtn = document.getElementById('toggle-password');
+  const pwdInput = document.getElementById('password');
+  togglePwdBtn.addEventListener('click', () => {
+    const isPwd = pwdInput.type === 'password';
+    pwdInput.type = isPwd ? 'text' : 'password';
+    togglePwdBtn.setAttribute('aria-label', isPwd ? 'Ocultar senha' : 'Mostrar senha');
+  });
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function hideError() {
+    document.getElementById('error-msg').classList.remove('show');
+  }
+  function setLoading(loading) {
+    const btn = document.querySelector('.btn-login');
+    const text = document.getElementById('btn-login-text');
+    const spinner = document.getElementById('btn-login-spinner');
+    btn.disabled = loading;
+    if (loading) {
+      text.textContent = 'Entrando…';
+      spinner.classList.remove('hidden');
+    } else {
+      text.textContent = 'Entrar';
+      spinner.classList.add('hidden');
+    }
+  }
+
+  // Login submit
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const remember = document.getElementById('remember').checked;
+
+    if (!email) { showError('Informe seu email.'); return; }
+    if (!password) { showError('Informe sua senha.'); return; }
+
+    if (!F.IS_FIREBASE_CONFIGURED) {
+      showError('Firebase não configurado. Edite shared.js primeiro.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await F.Auth.login(email, password, remember);
+      const params = new URLSearchParams(location.search);
+      const returnTo = params.get('return') || 'index.html';
+      location.href = returnTo;
+    } catch (err) {
+      setLoading(false);
+      showError(err.message);
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
