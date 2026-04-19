@@ -7,1139 +7,133 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<!-- Firebase (compat para simplicidade em arquivo único) -->
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="fluxo.css">
 <style>
-  :root {
-    --bg: #ffffff;
-    --surface: #ffffff;
-    --surface-2: #f5f7fa;
-    --surface-3: #eef1f5;
-    --border: #e4e8ee;
-    --border-strong: #c9d0da;
-    --text: #0a0e16;
-    --text-dim: #4a5262;
-    --text-muted: #6b7280;
-    --accent: #1CA7EC;
-    --accent-dim: #0d8bc7;
-    --accent-text: #0a6e9e;
-    --accent-glow: rgba(28, 167, 236, 0.12);
-    --accent-bg: rgba(28, 167, 236, 0.08);
-    --accent-bg-strong: rgba(28, 167, 236, 0.16);
-    --danger: #d92d20;
-    --danger-text: #b42318;
-    --danger-bg: rgba(217, 45, 32, 0.07);
-    --success: #109854;
-    --success-bg: rgba(16,152,84,0.08);
-    --warning: #b45309;
-    --warning-bg: rgba(245,158,11,0.12);
-    --violet: #7c3aed;
-    --violet-bg: rgba(124,58,237,0.1);
-    --violet-text: #6d28d9;
-    --brand-black: #0a0e16;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Archivo', sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-  }
-  body {
-    background:
-      radial-gradient(1200px 600px at 85% -10%, rgba(28,167,236,0.06), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, rgba(28,167,236,0.04), transparent 60%),
-      var(--bg);
-  }
-
-  .topbar {
+  /* Meta-info chips (data/hora da importação + período) */
+  .meta-info {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 28px;
-    background: var(--brand-black);
-    color: #fff;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    border-bottom: 2px solid var(--accent);
-    gap: 16px;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
   }
-  .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .brand-mark {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    background: #000;
-    border: 1px solid #2a2f3a;
-    position: relative;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-  .brand-mark::before, .brand-mark::after {
-    content: "";
-    position: absolute;
-    width: 17px; height: 8px; border-radius: 2px;
-    clip-path: polygon(0 0, 100% 0, 100% 40%, 35% 40%, 35% 100%, 0 100%);
-  }
-  .brand-mark::before { background: #fff; transform: translate(-3px, -4px) rotate(-2deg); }
-  .brand-mark::after { background: var(--accent); transform: translate(4px, 5px) rotate(-2deg); }
-
-  .brand-text { display: flex; flex-direction: column; line-height: 1; }
-  .brand-text .name { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; color: #fff; }
-  .brand-text .sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: #9aa3b2;
-    margin-top: 3px; text-transform: uppercase; letter-spacing: 0.15em;
-  }
-
-  .nav { display: flex; gap: 4px; }
-  .nav a {
-    color: #c9d0da;
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 6px 12px;
-    border-radius: 6px;
-    transition: color 0.15s, background 0.15s;
-    white-space: nowrap;
-  }
-  .nav a:hover { color: #fff; background: rgba(255,255,255,0.08); }
-  .nav a.active { color: #fff; background: rgba(28,167,236,0.25); font-weight: 600; }
-
-  .menu-toggle {
-    display: none;
-    background: transparent;
-    border: 1px solid #2a2f3a;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .topbar-meta {
-    display: flex; align-items: center; gap: 14px;
-  }
-  .last-update {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: #c9d0da;
-    white-space: nowrap;
-  }
-  .last-update .dot {
-    display: inline-block;
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent);
-    margin-right: 6px;
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-  }
-  @keyframes pulse { 0%,100% {opacity:1} 50% {opacity:.4} }
-
-  .sync-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    padding: 3px 7px;
-    border-radius: 4px;
-    background: rgba(255,255,255,0.08);
-    color: #c9d0da;
-  }
-  .sync-badge.connected { color: #6ee7b7; background: rgba(16,152,84,0.15); }
-  .sync-badge.offline { color: #fca5a5; background: rgba(217,45,32,0.15); }
-  .sync-badge .sync-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: currentColor;
-  }
-
-  /* Page head */
-  .page-head { padding: 24px 28px 18px; border-bottom: 1px solid var(--border); }
-  .page-head .top {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    gap: 20px; flex-wrap: wrap;
-  }
-  .page-head .kicker {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--accent-text);
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    font-weight: 600;
-  }
-  .page-head h1 {
-    font-size: 32px; font-weight: 800;
-    letter-spacing: -0.03em; line-height: 1;
-    color: var(--text);
-  }
-  .page-head h1 .accent { color: var(--accent-text); font-style: italic; }
-  .page-head .desc { color: var(--text-dim); margin-top: 8px; font-size: 13px; }
-
-  .controls {
-    display: flex; gap: 20px; flex-wrap: wrap;
-    margin-top: 20px; align-items: flex-end;
-  }
-  .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
-  .ctrl-group label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
-  }
-  .ctrl-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .ctrl-row input[type="date"], .ctrl-row select, .ctrl-row input[type="text"], .ctrl-row input[type="number"] {
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    color: var(--text);
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-  }
-  .ctrl-row input:focus, .ctrl-row select:focus {
-    outline: none; border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-
-  .toggle {
+  .meta-chip {
     display: inline-flex;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 3px; gap: 2px;
-  }
-  .toggle button {
-    background: transparent; border: none;
-    color: var(--text-muted);
+    align-items: center;
+    gap: 6px;
     padding: 6px 12px;
-    border-radius: 4px;
-    font-family: inherit; font-size: 11px; font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    letter-spacing: 0.02em;
-  }
-  .toggle button.active {
-    background: var(--surface); color: var(--text);
-    box-shadow: 0 1px 2px rgba(10,14,22,0.08);
-  }
-
-  .btn {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    padding: 9px 16px;
-    border-radius: 7px;
-    font-family: inherit; font-weight: 700; font-size: 12px;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 6px rgba(28,167,236,0.2);
-    text-decoration: none;
-    display: inline-flex; align-items: center; gap: 6px;
-    white-space: nowrap;
-  }
-  .btn:hover:not(:disabled) { background: var(--accent-dim); }
-  .btn-ghost {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border-strong);
-    box-shadow: none;
-  }
-  .btn-ghost:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); box-shadow: none; }
-  .btn-danger {
-    background: var(--danger); color: #fff;
-    box-shadow: 0 2px 6px rgba(217,45,32,0.25);
-  }
-  .btn-danger:hover:not(:disabled) { background: #b42318; }
-  .btn-success {
-    background: var(--success); color: #fff;
-    box-shadow: 0 2px 6px rgba(16,152,84,0.25);
-  }
-  .btn-success:hover:not(:disabled) { background: #0a7a42; }
-
-  /* Export dropdown */
-  .export-wrap { position: relative; display: inline-block; }
-  .export-menu {
-    position: absolute;
-    right: 0; top: calc(100% + 6px);
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(10,14,22,0.12);
-    min-width: 210px;
-    padding: 6px;
-    z-index: 30;
-    display: none;
-  }
-  .export-menu.open { display: block; }
-  .export-menu button {
-    display: flex; width: 100%; align-items: center; gap: 10px;
-    padding: 9px 12px;
-    background: transparent; border: none;
-    color: var(--text);
-    font-family: inherit; font-size: 13px;
-    cursor: pointer;
-    border-radius: 6px;
-    text-align: left;
-    transition: background 0.15s;
-  }
-  .export-menu button:hover { background: var(--surface-2); }
-  .export-menu button .ico {
-    width: 28px; height: 28px;
-    border-radius: 6px;
-    display: grid; place-items: center;
-    color: var(--accent-text);
-    background: var(--accent-bg);
-    flex-shrink: 0;
-  }
-  .export-menu button.pdf .ico { color: var(--danger-text); background: var(--danger-bg); }
-  .export-menu button.png .ico { color: var(--warning); background: var(--warning-bg); }
-  .export-menu button.csv .ico { color: var(--text-dim); background: var(--surface-3); }
-  .export-menu button .lbl { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-  .export-menu button .lbl .t { font-weight: 600; font-size: 13px; }
-  .export-menu button .lbl .d { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
-
-  /* KPIs */
-  .kpi-wrap {
-    padding: 18px 28px;
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
-  }
-  .kpi {
-    background: var(--surface);
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 18px;
-    position: relative; overflow: hidden;
-    box-shadow: 0 1px 3px rgba(10,14,22,0.04);
-  }
-  .kpi::after {
-    content: "";
-    position: absolute; top: 0; right: 0;
-    width: 70px; height: 70px;
-    background: radial-gradient(circle at top right, var(--accent-glow), transparent 70%);
-    pointer-events: none;
-  }
-  .kpi .label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--text-muted);
-    letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
-  }
-  .kpi .value {
-    font-size: 22px; font-weight: 800;
-    letter-spacing: -0.02em;
-    margin-top: 8px;
-    font-variant-numeric: tabular-nums;
-    color: var(--text);
-  }
-  .kpi .value.in { color: var(--accent-text); }
-  .kpi .value.out { color: var(--danger-text); }
-  .kpi .value.positive { color: var(--accent-text); }
-  .kpi .value.negative { color: var(--danger-text); }
-  .kpi .sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--text-dim); margin-top: 4px;
-  }
-
-  /* Grid */
-  .grid-wrap { padding: 0 28px 40px; }
-  .grid-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(10,14,22,0.04);
-  }
-  .grid-head {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
-    background: var(--surface);
-    flex-wrap: wrap; gap: 10px;
-  }
-  .grid-head h3 { font-size: 15px; font-weight: 700; color: var(--text); }
-  .grid-head .sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--text-muted);
-    margin-top: 2px;
-  }
-  .grid-head .actions-row {
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-  }
-
-  .grid-scroll {
-    overflow: auto;
-    max-height: calc(100vh - 240px);
-    min-height: 420px;
-  }
-
-  table.grid {
-    border-collapse: separate; border-spacing: 0;
-    font-variant-numeric: tabular-nums;
-    font-size: 12px;
-    width: max-content;
-    min-width: 100%;
-  }
-
-  table.grid thead th {
-    position: sticky; top: 0; z-index: 3;
-    background: var(--surface-2);
-    padding: 10px 12px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; font-weight: 700;
-    color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 0.06em;
-    border-bottom: 1.5px solid var(--border-strong);
-    text-align: right; white-space: nowrap;
-  }
-  table.grid thead th.weekend {
-    background: var(--surface-3); color: var(--text-muted);
-  }
-  table.grid thead th .wd {
-    display: block;
-    font-size: 9px;
-    color: var(--text-muted);
-    font-weight: 600;
-    margin-top: 2px;
-  }
-
-  table.grid th.first, table.grid td.first {
-    position: sticky; left: 0; z-index: 2;
-    background: var(--surface);
-    text-align: left;
-    padding: 10px 16px;
-    border-right: 1.5px solid var(--border-strong);
-    min-width: 240px;
-    max-width: 300px;
-  }
-  table.grid thead th.first { z-index: 4; background: var(--surface-2); }
-
-  /* First column content */
-  .row-label {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  }
-  .row-label .name-group { flex: 1; overflow: hidden; min-width: 0; }
-  .row-label .name-group .nm {
-    display: block;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .row-label .name-group .nm .tag {
-    display: inline-block;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    padding: 2px 5px;
-    border-radius: 3px;
-    margin-left: 6px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    vertical-align: middle;
-  }
-  .row-label .name-group .nm .tag.manual {
-    background: var(--violet-bg);
-    color: var(--violet-text);
-  }
-  .row-label .name-group .sub {
-    display: block;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--text-muted);
-    margin-top: 2px; font-weight: 400;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .row-label .row-actions {
-    display: flex; gap: 3px;
-    opacity: 0; transition: opacity 0.15s;
-    flex-shrink: 0;
-  }
-  table.grid tbody tr:hover .row-actions { opacity: 1; }
-  .row-label .row-actions button {
-    background: transparent; border: none;
-    color: var(--text-muted);
-    padding: 3px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: grid; place-items: center;
-    transition: background 0.15s, color 0.15s;
-  }
-  .row-label .row-actions button:hover { background: var(--surface-3); color: var(--text); }
-  .row-label .row-actions button.danger:hover { background: var(--danger-bg); color: var(--danger-text); }
-
-  table.grid tbody td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    text-align: right;
-    white-space: nowrap;
-    color: var(--text);
-    font-size: 12px;
-    position: relative;
-  }
-  table.grid tbody td.first {
-    font-weight: 500;
-    color: var(--text);
-    font-size: 13px;
-  }
-  table.grid tbody td.weekend { background: var(--surface-3); }
-  table.grid tbody td.empty { color: var(--text-muted); cursor: pointer; transition: background 0.15s; }
-  table.grid tbody td.empty:hover { background: var(--violet-bg); color: var(--violet-text); }
-  table.grid tbody td.empty:hover::after {
-    content: "+";
-    position: absolute;
-    inset: 0;
-    display: grid; place-items: center;
-    font-size: 14px;
-    font-weight: 700;
-  }
-  table.grid tbody td.empty:hover span { visibility: hidden; }
-
-  table.grid tbody td.out-val { color: var(--danger-text); font-weight: 500; cursor: pointer; transition: background 0.15s; }
-  table.grid tbody td.in-val { color: var(--accent-text); font-weight: 600; cursor: pointer; transition: background 0.15s; }
-  table.grid tbody td.out-val:hover, table.grid tbody td.in-val:hover {
-    background: var(--accent-bg); text-decoration: underline;
-  }
-
-  /* Comment indicator */
-  td .comment-dot {
-    position: absolute;
-    top: 4px; right: 4px;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--warning);
-    box-shadow: 0 0 0 2px var(--surface);
-    pointer-events: none;
-  }
-  td.weekend .comment-dot { box-shadow: 0 0 0 2px var(--surface-3); }
-  td.in-val .comment-dot, .receber-row td .comment-dot { box-shadow: 0 0 0 2px var(--accent-bg); }
-
-  /* Manual cells */
-  table.grid tbody td.manual-val {
-    background: var(--violet-bg);
-    color: var(--violet-text);
-    font-weight: 600;
-    cursor: pointer;
-  }
-  table.grid tbody td.manual-val:hover {
-    background: rgba(124,58,237,0.18);
-    text-decoration: underline;
-  }
-
-  table.grid tbody tr.vendor-row:hover td { background: var(--surface-2); }
-  table.grid tbody tr.vendor-row:hover td.first { background: #eaf3fa; }
-  table.grid tbody tr.manual-row.vendor-row:hover td.first { background: rgba(124,58,237,0.15); }
-  table.grid tbody tr.manual-row td.first {
-    background: linear-gradient(90deg, var(--violet-bg) 0%, var(--surface) 100%);
-  }
-
-  table.grid tbody tr.section-divider td {
-    background: var(--surface-3);
-    padding: 8px 16px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.12em;
-    border-top: 2px solid var(--border-strong);
-    border-bottom: 1px solid var(--border-strong);
-    position: sticky; left: 0;
-  }
-
-  table.grid tbody tr.receber-row td {
-    background: var(--accent-bg);
-    font-weight: 600;
-    border-bottom: 1px solid rgba(28,167,236,0.2);
-  }
-  table.grid tbody tr.receber-row td.first {
-    background: var(--accent-bg-strong);
-    color: var(--accent-text);
-    font-weight: 700;
-  }
-  table.grid tbody tr.receber-row td.in-val { color: var(--accent-text); }
-  table.grid tbody tr.receber-row td.weekend { background: rgba(28,167,236,0.12); }
-  table.grid tbody tr.receber-row td.empty:hover { background: rgba(28,167,236,0.18); color: var(--accent-text); }
-
-  table.grid tfoot td {
-    padding: 10px 12px;
-    text-align: right; white-space: nowrap; font-weight: 700;
-    border-top: 1.5px solid var(--border-strong);
-    position: sticky; bottom: 0;
-    background: var(--surface); z-index: 2;
-    font-size: 12px;
-  }
-  table.grid tfoot td.first {
-    text-align: left;
-    font-family: 'Archivo', sans-serif;
-    font-size: 13px; z-index: 3;
-  }
-  table.grid tfoot tr.subtotal-out td {
-    background: var(--danger-bg); color: var(--danger-text);
-  }
-  table.grid tfoot tr.subtotal-out td.first {
-    background: var(--danger-bg); color: var(--danger-text);
-  }
-  table.grid tfoot tr.saldo td {
-    background: var(--brand-black); color: #fff;
-    font-size: 13px; font-weight: 800;
-    border-top: 2px solid var(--accent);
-  }
-  table.grid tfoot tr.saldo td.first { background: var(--brand-black); color: #fff; font-size: 13px; }
-  table.grid tfoot tr.saldo td.positive-bal { color: var(--accent); }
-  table.grid tfoot tr.saldo td.negative-bal { color: #ff7971; }
-  table.grid tfoot tr.acumulado td {
-    background: var(--surface-2); color: var(--text-dim);
-    font-weight: 600;
-    font-family: 'JetBrains Mono', monospace; font-size: 11px;
-  }
-  table.grid tfoot tr.acumulado td.first {
-    background: var(--surface-2); color: var(--text-dim);
-    font-family: 'Archivo', sans-serif; font-size: 12px;
-  }
-  table.grid tfoot tr.acumulado td.positive-bal { color: var(--accent-text); }
-  table.grid tfoot tr.acumulado td.negative-bal { color: var(--danger-text); }
-
-  /* Empty state */
-  .empty-state { padding: 70px 28px; text-align: center; color: var(--text-dim); }
-  .empty-state .ico {
-    width: 72px; height: 72px;
-    margin: 0 auto 18px;
-    border-radius: 50%;
-    background: var(--surface-2);
-    border: 1.5px dashed var(--border-strong);
-    display: grid; place-items: center;
-    color: var(--text-muted);
-  }
-  .empty-state h2 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
-  .empty-state p { font-size: 14px; margin-bottom: 20px; max-width: 440px; margin-left: auto; margin-right: auto; }
-
-  /* Modal */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(10,14,22,0.5);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 100; padding: 20px;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.2s;
-    backdrop-filter: blur(3px);
-  }
-  .modal-overlay.open { opacity: 1; pointer-events: auto; }
-  .modal {
-    background: var(--surface);
-    border-radius: 14px;
-    max-width: 760px; width: 100%;
-    max-height: 86vh;
-    overflow: hidden;
-    display: flex; flex-direction: column;
-    box-shadow: 0 20px 60px rgba(10,14,22,0.4);
-    transform: scale(0.96);
-    transition: transform 0.2s;
-  }
-  .modal-overlay.open .modal { transform: scale(1); }
-  .modal .head {
-    padding: 18px 22px;
-    border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 16px;
-    background: var(--surface);
-  }
-  .modal .head .title h3 {
-    font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px;
-  }
-  .modal .head .title .sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--text-muted);
-  }
-  .modal .head .title .date-info {
-    margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;
-  }
-  .modal .head .title .date-chip {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    padding: 4px 8px; border-radius: 4px;
-    background: var(--surface-2); color: var(--text-dim);
-    display: inline-flex; align-items: center; gap: 5px;
-  }
-  .modal .head .title .date-chip strong { color: var(--text); font-weight: 700; }
-  .modal .close-btn {
-    background: transparent; border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 6px; border-radius: 6px;
-    transition: background 0.15s, color 0.15s;
-    flex-shrink: 0;
-  }
-  .modal .close-btn:hover { background: var(--surface-2); color: var(--text); }
-  .modal .body { overflow: auto; flex: 1; }
-  .modal table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .modal thead th {
-    background: var(--surface-2);
-    padding: 10px 18px; text-align: left;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; font-weight: 700;
-    color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 0.08em;
-    border-bottom: 1.5px solid var(--border-strong);
-    position: sticky; top: 0; white-space: nowrap;
-  }
-  .modal thead th.right { text-align: right; }
-  .modal tbody td {
-    padding: 10px 18px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text);
-  }
-  .modal tbody td.right { text-align: right; font-variant-numeric: tabular-nums; }
-  .modal tbody td.doc { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
-  .modal tbody td.value-in { color: var(--accent-text); font-weight: 600; }
-  .modal tbody td.value-out { color: var(--danger-text); font-weight: 600; }
-  .modal tbody tr:hover { background: var(--surface-2); }
-  .modal tbody tr.manual-title td { background: var(--violet-bg); }
-  .modal tbody tr.manual-title td .tag {
-    display: inline-block;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    padding: 2px 5px;
-    border-radius: 3px;
-    margin-left: 6px;
-    background: var(--violet); color: #fff;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-  }
-  .modal tbody td .row-del-btn {
-    background: transparent; border: none;
-    color: var(--text-muted); cursor: pointer;
-    padding: 4px; border-radius: 4px;
-    transition: color 0.15s, background 0.15s;
-  }
-  .modal tbody td .row-del-btn:hover { color: var(--danger-text); background: var(--danger-bg); }
-
-  .modal .foot {
-    padding: 14px 22px;
-    border-top: 1.5px solid var(--border-strong);
-    background: var(--surface-2);
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 12px; flex-wrap: wrap;
-  }
-  .modal .foot .total-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.08em;
-  }
-  .modal .foot .total-value {
-    font-size: 18px; font-weight: 800;
-    font-variant-numeric: tabular-nums;
-  }
-  .modal .foot .total-value.in { color: var(--accent-text); }
-  .modal .foot .total-value.out { color: var(--danger-text); }
-
-  /* Form modal */
-  .modal-form {
-    padding: 20px 22px;
-    display: grid; gap: 14px;
-  }
-  .form-field { display: flex; flex-direction: column; gap: 6px; }
-  .form-field label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
-  }
-  .form-field input, .form-field select, .form-field textarea {
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    color: var(--text);
-    padding: 10px 12px;
-    border-radius: 7px;
-    font-family: inherit;
-    font-size: 13px;
-  }
-  .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
-    outline: none; border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-  .form-field textarea { min-height: 80px; resize: vertical; font-family: inherit; }
-  .form-field .hint {
-    font-size: 11px; color: var(--text-muted);
-  }
-  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .form-actions {
-    display: flex; gap: 10px; justify-content: flex-end;
-    margin-top: 6px;
-  }
-  .form-type-toggle {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
-    border: 1px solid var(--border-strong);
-    border-radius: 8px; overflow: hidden;
-  }
-  .form-type-toggle button {
-    background: var(--surface); border: none;
-    padding: 12px 14px;
-    font-family: inherit; font-size: 13px; font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .form-type-toggle button:first-child { border-right: 1px solid var(--border-strong); }
-  .form-type-toggle button.active.pagar {
-    background: var(--danger-bg); color: var(--danger-text);
-  }
-  .form-type-toggle button.active.receber {
-    background: var(--accent-bg); color: var(--accent-text);
-  }
-
-  /* Comments section */
-  .comments-section {
-    border-top: 1.5px solid var(--border-strong);
-    padding: 16px 22px;
-    background: var(--surface);
-  }
-  .comments-section h4 {
-    font-size: 13px; font-weight: 700;
-    margin-bottom: 12px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .comments-section h4 .count {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    padding: 2px 6px;
-    background: var(--surface-2);
-    color: var(--text-dim);
-    border-radius: 3px;
-    font-weight: 600;
-  }
-  .comments-list {
-    max-height: 220px;
-    overflow-y: auto;
-    margin-bottom: 12px;
-  }
-  .comment {
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--surface-2);
-    margin-bottom: 8px;
-    border-left: 3px solid var(--accent);
-  }
-  .comment .meta {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 6px; gap: 8px;
-  }
-  .comment .author {
-    font-weight: 700; font-size: 13px; color: var(--text);
-  }
-  .comment .time {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--text-muted);
-  }
-  .comment .text {
-    font-size: 13px; color: var(--text-dim);
-    line-height: 1.5; word-wrap: break-word;
-  }
-  .comment .del-btn {
-    background: transparent; border: none;
-    color: var(--text-muted); cursor: pointer;
-    padding: 2px 5px; border-radius: 4px;
+    border-radius: 6px;
     font-size: 11px;
-  }
-  .comment .del-btn:hover { color: var(--danger-text); background: var(--danger-bg); }
-  .comment-empty {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 12px;
-    padding: 20px 10px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .comment-form {
-    display: flex; gap: 8px; flex-direction: column;
-  }
-  .comment-form .row-author {
-    display: grid; grid-template-columns: 1fr auto; gap: 8px;
-  }
-  .comment-form input, .comment-form textarea {
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    color: var(--text);
-    padding: 8px 10px;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 13px;
-  }
-  .comment-form textarea { resize: vertical; min-height: 60px; font-family: inherit; }
-  .comment-form input:focus, .comment-form textarea:focus {
-    outline: none; border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-
-  /* Trash/restore list */
-  .trash-modal table tbody td .restore-btn {
-    background: transparent; border: 1px solid var(--success);
-    color: var(--success);
-    padding: 4px 10px;
-    border-radius: 5px;
-    font-family: inherit; font-size: 11px; font-weight: 700;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-  .trash-modal table tbody td .restore-btn:hover { background: var(--success); color: #fff; }
-  .trash-modal .empty-trash {
-    padding: 40px 20px; text-align: center;
-    color: var(--text-muted); font-size: 13px;
-  }
-  .trash-modal .tabs {
-    display: flex; gap: 4px;
-    padding: 12px 22px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface-2);
-  }
-  .trash-modal .tabs button {
-    background: transparent; border: 1px solid transparent;
     color: var(--text-dim);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-family: inherit; font-size: 12px; font-weight: 600;
-    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
   }
-  .trash-modal .tabs button.active {
-    background: var(--surface);
+  .meta-chip strong {
     color: var(--text);
-    border-color: var(--border-strong);
+    font-weight: 700;
   }
-
-  /* Loading overlay */
-  .loading-overlay {
-    position: fixed; inset: 0;
-    background: rgba(255,255,255,0.85);
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 16px;
-    z-index: 200;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.2s;
-    backdrop-filter: blur(4px);
-  }
-  .loading-overlay.open { opacity: 1; pointer-events: auto; }
-  .loading-overlay .spinner {
-    width: 42px; height: 42px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-overlay .text {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 0.1em;
-  }
-
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 24px; right: 24px;
-    background: var(--brand-black);
-    color: #fff;
-    padding: 12px 18px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    box-shadow: 0 8px 24px rgba(10,14,22,0.25);
-    z-index: 300;
-    opacity: 0; pointer-events: none;
-    transform: translateY(20px);
-    transition: opacity 0.2s, transform 0.2s;
-    display: flex; align-items: center; gap: 10px;
-    max-width: 360px;
-  }
-  .toast.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
-  .toast.success { border-left: 3px solid var(--success); }
-  .toast.error { border-left: 3px solid var(--danger); }
-  .toast button {
-    background: transparent; border: 1px solid rgba(255,255,255,0.25);
-    color: #fff; padding: 5px 12px;
-    border-radius: 5px;
-    font-family: inherit; font-size: 12px; font-weight: 600;
-    cursor: pointer;
-    margin-left: 4px;
-    white-space: nowrap;
-  }
-  .toast button:hover { background: rgba(255,255,255,0.1); }
-
-  footer {
-    padding: 20px 28px;
-    border-top: 1px solid var(--border);
-    text-align: center;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--text-muted);
+  .meta-chip .meta-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
     letter-spacing: 0.08em;
-    background: var(--surface-2);
+    font-size: 10px;
   }
-
-  .hidden { display: none !important; }
-
-  @media (max-width: 1000px) {
-    .kpi-wrap { grid-template-columns: repeat(2, 1fr); }
+  .trash-count-badge {
+    display: none;
+    background: var(--warning);
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+    font-family: 'JetBrains Mono', monospace;
   }
-  @media (max-width: 860px) {
-    .topbar { flex-wrap: wrap; padding: 12px 16px; }
-    .nav { display: none; width: 100%; flex-direction: column; gap: 4px; margin-top: 8px; order: 3; }
-    .nav.open { display: flex; }
-    .nav a { width: 100%; padding: 10px 12px; }
-    .menu-toggle { display: inline-flex; }
-    .last-update { display: none; }
-    .page-head { padding: 20px 16px 14px; }
-    .page-head h1 { font-size: 26px; }
-    .kpi-wrap { padding: 14px 16px; }
-    .grid-wrap { padding: 0 16px 30px; }
-    .grid-scroll { max-height: calc(100vh - 300px); }
-    table.grid th.first, table.grid td.first { min-width: 180px; max-width: 220px; padding: 8px 12px; }
-    table.grid tbody td, table.grid thead th, table.grid tfoot td { padding: 7px 10px; font-size: 11px; }
-    .controls { gap: 14px; }
-    .row-label .row-actions { opacity: 1; }
-  }
-  @media (max-width: 560px) {
-    .kpi-wrap { grid-template-columns: 1fr; gap: 10px; }
-    .kpi { padding: 14px 16px; }
-    .kpi .value { font-size: 20px; }
-    .page-head h1 { font-size: 22px; }
-    .page-head .desc { font-size: 12px; }
-    .ctrl-row { width: 100%; }
-    .ctrl-row input[type="date"] { flex: 1; min-width: 0; }
-    .ctrl-group { width: 100%; }
-    .grid-head { padding: 12px 14px; }
-    .grid-head h3 { font-size: 14px; }
-    .grid-scroll { max-height: calc(100vh - 360px); }
-    table.grid th.first, table.grid td.first { min-width: 140px; max-width: 180px; padding: 8px 10px; }
-    table.grid tbody td.first { font-size: 12px; }
-    .btn { padding: 8px 14px; font-size: 12px; }
-    .modal { max-height: 92vh; border-radius: 12px; }
-    .modal .head { padding: 14px 16px; }
-    .modal .head .title h3 { font-size: 15px; }
-    .modal thead th, .modal tbody td { padding: 8px 14px; font-size: 12px; }
-    .modal .foot { padding: 12px 16px; }
-    .modal .foot .total-value { font-size: 16px; }
-    .modal-form { padding: 16px; }
-    .form-grid-2 { grid-template-columns: 1fr; }
-    .export-menu { min-width: 180px; right: -10px; }
-    footer { padding: 16px; font-size: 10px; }
-    .toast { bottom: 12px; right: 12px; left: 12px; max-width: none; }
-    .comments-section { padding: 14px 16px; }
-  }
-
-  .export-mode { max-height: none !important; overflow: visible !important; }
-
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: var(--surface-2); }
-  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 </style>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
-    <div class="brand-mark"></div>
-    <div class="brand-text">
-      <span class="name">Filadélfia</span>
-      <span class="sub">Sistema Financeiro</span>
-    </div>
-  </div>
-  <button class="menu-toggle" id="menu-toggle" aria-label="Menu">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
-  </button>
-  <nav class="nav" id="nav">
-    <a href="index.html" class="active">Fluxo de Caixa</a>
-    <a href="processamento.html">Processamento</a>
-  </nav>
-  <div class="topbar-meta">
-    <div class="sync-badge" id="sync-badge" title="Status de sincronização">
-      <span class="sync-dot"></span>
-      <span id="sync-text">—</span>
-    </div>
-    <div class="last-update" id="last-update"><span class="dot"></span>Aguardando dados</div>
-  </div>
-</header>
+<header class="topbar"></header>
 
 <!-- Empty state -->
 <section class="empty-state hidden" id="empty-state">
   <div class="ico">
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h18"/>
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
     </svg>
   </div>
-  <h2>Nenhum dado processado ainda</h2>
-  <p>Importe os relatórios ou crie uma provisão manual para começar.</p>
-  <div style="display:flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-    <a href="processamento.html" class="btn">Ir para processamento →</a>
-    <button class="btn btn-ghost" id="btn-add-empty">Criar lançamento manual</button>
+  <h2>Nenhum dado carregado</h2>
+  <p>Importe seus relatórios de Contas a Pagar e Contas a Receber na página de Processamento para começar, ou crie um lançamento manual.</p>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <a class="btn large" href="processamento.html">Ir para Processamento</a>
+    <button class="btn btn-ghost large" id="btn-add-empty">+ Novo lançamento manual</button>
   </div>
 </section>
 
-<!-- Main -->
+<!-- Main content -->
 <div id="main-content" class="hidden">
-
   <section class="page-head">
-    <div class="top">
-      <div>
-        <div class="kicker">01 / Fluxo de Caixa Diário</div>
-        <h1>Fluxo de <span class="accent">caixa</span></h1>
-        <p class="desc">Contas a pagar por fornecedor e contas a receber, distribuídas por data com regras bancárias aplicadas.</p>
-      </div>
-    </div>
+    <div class="kicker">Fluxo de caixa</div>
+    <h1>Projeção <span class="accent">diária</span></h1>
+    <p class="desc">Entradas e saídas por data, com aplicação automática das regras bancárias de compensação. Clique em qualquer valor para ver os títulos detalhados.</p>
+    <div class="meta-info" id="meta-info"></div>
 
     <div class="controls">
       <div class="ctrl-group">
         <label>Período</label>
         <div class="ctrl-row">
           <input type="date" id="filter-start" />
+          <span style="color:var(--text-muted);font-size:12px;">até</span>
           <input type="date" id="filter-end" />
-          <button class="btn btn-ghost" id="btn-reset">Período completo</button>
+          <button class="btn btn-ghost" id="btn-reset" title="Restaurar período completo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            Resetar
+          </button>
         </div>
       </div>
-
       <div class="ctrl-group">
-        <label>Visão por data</label>
-        <div class="ctrl-row">
-          <div class="toggle">
-            <button id="view-effective" class="active">Data efetiva</button>
-            <button id="view-due">Vencimento</button>
-          </div>
+        <label>Modo de exibição</label>
+        <div class="toggle">
+          <button class="active" id="view-effective">Data efetiva</button>
+          <button id="view-due">Vencimento</button>
         </div>
       </div>
-
-      <div class="ctrl-group" style="margin-left: auto;">
+      <div class="ctrl-group" style="margin-left:auto;">
         <label>&nbsp;</label>
         <div class="ctrl-row">
-          <button class="btn" id="btn-add">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Novo lançamento
+          <button class="btn btn-ghost" id="btn-trash" title="Lixeira">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+            Lixeira<span id="trash-count" class="trash-count-badge">0</span>
           </button>
-          <button class="btn btn-ghost" id="btn-trash" title="Lixeira / restaurar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-            Lixeira <span id="trash-count" style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:1px 5px; background: var(--surface-3); border-radius: 3px; display: none;">0</span>
+          <button class="btn" id="btn-add">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo lançamento
           </button>
           <div class="export-wrap">
             <button class="btn btn-ghost" id="btn-export-toggle">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Exportar
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="export-menu" id="export-menu">
-              <button class="xlsx" data-export="xlsx">
-                <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg></span>
-                <span class="lbl"><span class="t">Excel (.xlsx)</span><span class="d">Planilha editável</span></span>
-              </button>
-              <button class="pdf" data-export="pdf">
+              <button data-export="xlsx">
                 <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
-                <span class="lbl"><span class="t">PDF (.pdf)</span><span class="d">Documento para impressão</span></span>
+                <div class="lbl"><span class="t">Planilha Excel</span><span class="d">.xlsx com duas abas</span></div>
               </button>
-              <button class="png" data-export="png">
-                <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg></span>
-                <span class="lbl"><span class="t">Imagem (.png)</span><span class="d">Screenshot da tabela</span></span>
+              <button data-export="pdf" class="pdf">
+                <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+                <div class="lbl"><span class="t">PDF</span><span class="d">.pdf paginado, texto real</span></div>
               </button>
-              <button class="csv" data-export="csv">
-                <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
-                <span class="lbl"><span class="t">CSV (.csv)</span><span class="d">Texto separado por ponto e vírgula</span></span>
+              <button data-export="png" class="png">
+                <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+                <div class="lbl"><span class="t">Imagem</span><span class="d">.png para apresentações</span></div>
+              </button>
+              <button data-export="csv" class="csv">
+                <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
+                <div class="lbl"><span class="t">CSV</span><span class="d">.csv para importar em outros sistemas</span></div>
               </button>
             </div>
           </div>
@@ -1150,24 +144,24 @@
 
   <section class="kpi-wrap">
     <div class="kpi">
-      <div class="label">Entradas do período</div>
-      <div class="value in" id="kpi-in">R$ 0,00</div>
-      <div class="sub" id="kpi-in-sub">&nbsp;</div>
+      <div class="label">Total a receber</div>
+      <div class="value in" id="kpi-in">–</div>
+      <div class="sub" id="kpi-in-sub">—</div>
     </div>
     <div class="kpi">
-      <div class="label">Saídas do período</div>
-      <div class="value out" id="kpi-out">R$ 0,00</div>
-      <div class="sub" id="kpi-out-sub">&nbsp;</div>
+      <div class="label">Total a pagar</div>
+      <div class="value out" id="kpi-out">–</div>
+      <div class="sub" id="kpi-out-sub">—</div>
     </div>
     <div class="kpi">
       <div class="label">Saldo líquido</div>
-      <div class="value" id="kpi-net">R$ 0,00</div>
-      <div class="sub" id="kpi-net-sub">&nbsp;</div>
+      <div class="value" id="kpi-net">–</div>
+      <div class="sub" id="kpi-net-sub">—</div>
     </div>
     <div class="kpi">
-      <div class="label">Dias com déficit</div>
+      <div class="label">Dias com deficit</div>
       <div class="value" id="kpi-deficit">0</div>
-      <div class="sub" id="kpi-deficit-sub">&nbsp;</div>
+      <div class="sub" id="kpi-deficit-sub">—</div>
     </div>
   </section>
 
@@ -1175,14 +169,14 @@
     <div class="grid-card" id="grid-card">
       <div class="grid-head">
         <div>
-          <h3>Fluxograma de caixa</h3>
-          <div class="sub" id="grid-sub">&nbsp;</div>
+          <h3>Grade de fluxo por fornecedor e dia</h3>
+          <div class="sub" id="grid-sub">—</div>
         </div>
-        <div class="actions-row" style="font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;gap:12px;flex-wrap:wrap;">
-          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--accent-text)"></span>Entradas</span>
-          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--danger-text)"></span>Saídas</span>
-          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--violet)"></span>Manual</span>
-          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--warning)"></span>Comentário</span>
+        <div class="legend">
+          <div class="item"><span class="dot" style="background:var(--accent);"></span>Entrada</div>
+          <div class="item"><span class="dot" style="background:var(--danger);"></span>Saída</div>
+          <div class="item"><span class="dot" style="background:var(--violet);"></span>Manual</div>
+          <div class="item"><span class="dot" style="background:var(--warning);"></span>Com comentário</div>
         </div>
       </div>
       <div class="grid-scroll" id="grid-scroll">
@@ -1190,20 +184,19 @@
       </div>
     </div>
   </section>
-
 </div>
 
-<!-- Detail modal -->
+<!-- Modal de detalhes -->
 <div class="modal-overlay" id="detail-modal">
-  <div class="modal">
+  <div class="modal detail-modal">
     <div class="head">
       <div class="title">
-        <h3 id="detail-title">Detalhamento</h3>
-        <div class="sub" id="detail-subtitle"></div>
+        <h3 id="detail-title">—</h3>
+        <div class="sub" id="detail-subtitle">—</div>
         <div class="date-info" id="detail-date-info"></div>
       </div>
       <button class="close-btn" data-close="detail" aria-label="Fechar">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div class="body">
@@ -1211,77 +204,80 @@
         <thead id="detail-thead"></thead>
         <tbody id="detail-tbody"></tbody>
       </table>
+      <div class="comments-section">
+        <h4>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Comentários
+          <span class="count" id="comment-count">0</span>
+        </h4>
+        <div class="comments-list" id="comments-list"></div>
+        <div class="comment-form">
+          <textarea id="comment-text" placeholder="Escreva uma nota sobre esta data..." maxlength="1000"></textarea>
+          <div class="row-author">
+            <span class="author-tag" id="comment-author-tag">Publicar como <strong>—</strong></span>
+            <button class="btn" id="btn-add-comment">Publicar</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="foot">
-      <span class="total-label">Total</span>
-      <span class="total-value" id="detail-total">R$ 0,00</span>
-    </div>
-    <div class="comments-section">
-      <h4>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Comentários <span class="count" id="comment-count">0</span>
-      </h4>
-      <div class="comments-list" id="comments-list"></div>
-      <div class="comment-form">
-        <div class="row-author">
-          <input type="text" id="comment-author" placeholder="Seu nome" maxlength="50" />
-          <button class="btn btn-success" id="btn-add-comment">Comentar</button>
-        </div>
-        <textarea id="comment-text" placeholder="Escreva um comentário..." maxlength="1000"></textarea>
+      <div>
+        <div class="total-label">Total</div>
+        <div class="total-value" id="detail-total">R$ 0,00</div>
       </div>
+      <button class="btn btn-ghost" data-close="detail">Fechar</button>
     </div>
   </div>
 </div>
 
-<!-- Form modal (novo lançamento) -->
+<!-- Modal de lançamento manual -->
 <div class="modal-overlay" id="form-modal">
-  <div class="modal" style="max-width: 520px;">
+  <div class="modal">
     <div class="head">
       <div class="title">
-        <h3 id="form-title">Novo lançamento manual</h3>
-        <div class="sub">Provisão que não veio do ERP</div>
+        <h3>Novo lançamento manual</h3>
+        <div class="sub">Provisão que complementa os dados importados</div>
       </div>
       <button class="close-btn" data-close="form" aria-label="Fechar">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="modal-form">
+    <div class="body modal-form">
       <div class="form-field">
         <label>Tipo</label>
         <div class="form-type-toggle" id="form-type-toggle">
-          <button type="button" data-type="pagar" class="active pagar">Conta a Pagar (saída)</button>
-          <button type="button" data-type="receber" class="receber">Conta a Receber (entrada)</button>
+          <button class="active pagar" data-type="pagar">↓ Contas a Pagar</button>
+          <button class="receber" data-type="receber">↑ Contas a Receber</button>
         </div>
-      </div>
-      <div class="form-field">
-        <label id="form-entity-label">Fornecedor</label>
-        <input type="text" id="form-entity" placeholder="Nome do fornecedor ou descrição" maxlength="120" />
-        <span class="hint">Pode ser um fornecedor, cliente ou uma descrição do lançamento</span>
       </div>
       <div class="form-grid-2">
         <div class="form-field">
-          <label>Data de vencimento</label>
+          <label id="form-entity-label">Fornecedor</label>
+          <input type="text" id="form-entity" maxlength="120" placeholder="Nome do fornecedor" />
+        </div>
+        <div class="form-field">
+          <label>Documento</label>
+          <input type="text" id="form-doc" maxlength="60" placeholder="Nº do documento (opcional)" />
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label>Vencimento</label>
           <input type="date" id="form-date" />
+          <span class="hint">A regra bancária será aplicada automaticamente</span>
         </div>
         <div class="form-field">
-          <label>Valor (R$)</label>
-          <input type="number" id="form-value" step="0.01" min="0.01" placeholder="0,00" />
-        </div>
-      </div>
-      <div class="form-grid-2">
-        <div class="form-field">
-          <label>Documento (opcional)</label>
-          <input type="text" id="form-doc" placeholder="NF, boleto, descrição" maxlength="60" />
-        </div>
-        <div class="form-field">
-          <label>Criado por</label>
-          <input type="text" id="form-author" placeholder="Seu nome" maxlength="50" />
+          <label>Valor</label>
+          <input type="number" id="form-value" min="0.01" step="0.01" placeholder="0,00" />
         </div>
       </div>
       <div class="form-field">
-        <label>Observação (opcional)</label>
-        <textarea id="form-note" placeholder="Notas sobre esta provisão..." maxlength="500"></textarea>
+        <label>Observação</label>
+        <textarea id="form-note" maxlength="500" placeholder="Nota interna (opcional)"></textarea>
       </div>
+    </div>
+    <div class="foot">
+      <div style="color:var(--text-muted);font-size:11px;">Salvo apenas neste dispositivo</div>
       <div class="form-actions">
         <button class="btn btn-ghost" data-close="form">Cancelar</button>
         <button class="btn" id="btn-save">Salvar lançamento</button>
@@ -1290,1346 +286,48 @@
   </div>
 </div>
 
-<!-- Trash modal -->
+<!-- Modal de lixeira -->
 <div class="modal-overlay" id="trash-modal">
-  <div class="modal trash-modal" style="max-width: 800px;">
+  <div class="modal trash-modal" style="max-width:860px;">
     <div class="head">
       <div class="title">
         <h3>Lixeira</h3>
-        <div class="sub">Lançamentos e linhas excluídas — restaure quando necessário</div>
+        <div class="sub" id="trash-info">—</div>
       </div>
       <button class="close-btn" data-close="trash" aria-label="Fechar">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div class="tabs">
-      <button data-tab="manual" class="active">Lançamentos manuais</button>
-      <button data-tab="imported">Importados ocultos</button>
+      <button class="active" data-tab="manual">Lançamentos manuais</button>
+      <button data-tab="imported">Títulos importados</button>
     </div>
     <div class="body" id="trash-body"></div>
     <div class="foot">
-      <span class="total-label" id="trash-info">&nbsp;</span>
-      <button class="btn btn-danger" id="btn-empty-trash" style="font-size: 11px; padding: 7px 12px;">Esvaziar lixeira</button>
+      <button class="btn btn-danger" id="btn-empty-trash">Esvaziar lixeira</button>
+      <button class="btn btn-ghost" data-close="trash">Fechar</button>
     </div>
   </div>
-</div>
-
-<!-- Loading -->
-<div class="loading-overlay" id="loading">
-  <div class="spinner"></div>
-  <div class="text" id="loading-text">Gerando arquivo…</div>
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast">
-  <span id="toast-text"></span>
-  <button id="toast-action" class="hidden">Desfazer</button>
 </div>
 
 <footer>
   FILADÉLFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS
 </footer>
 
-<script>
-/* ============================================================
-   FIREBASE — SUBSTITUIR PELO SEU CONFIG
-   ============================================================ */
-const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
-  projectId: "SEU_PROJETO",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SUA_APP_ID"
-};
+<!-- Bibliotecas externas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<!-- Módulos do sistema -->
+<script src="shared.js"></script>
+<script src="fluxo.js"></script>
 
-let firebaseApp = null;
-let firebaseDB = null;
-let commentsRef = null;
-let commentsCache = {};     // { "<kind>:<vendor>:<date>" : { commentId: {...} } }
-let commentsLoaded = false;
-
-function initFirebase() {
-  if (firebaseConfig.apiKey === "SUA_API_KEY") {
-    updateSyncBadge('offline', 'Firebase não configurado');
-    commentsLoaded = true; // para não travar UI
-    return;
-  }
-  try {
-    firebaseApp = firebase.initializeApp(firebaseConfig);
-    firebaseDB = firebase.database();
-    commentsRef = firebaseDB.ref('filadelfia/comentarios');
-
-    firebaseDB.ref('.info/connected').on('value', snap => {
-      updateSyncBadge(snap.val() ? 'connected' : 'offline', snap.val() ? 'Sincronizado' : 'Offline');
-    });
-
-    commentsRef.on('value', snap => {
-      commentsCache = snap.val() || {};
-      commentsLoaded = true;
-      if (processed) render();
-      if (currentDetailKey) refreshDetailComments();
-    }, err => {
-      console.error('Firebase error:', err);
-      updateSyncBadge('offline', 'Erro de conexão');
-    });
-  } catch (err) {
-    console.error('Firebase init error:', err);
-    updateSyncBadge('offline', 'Firebase indisponível');
-    commentsLoaded = true;
-  }
-}
-
-function updateSyncBadge(status, text) {
-  const badge = document.getElementById('sync-badge');
-  badge.className = 'sync-badge ' + status;
-  document.getElementById('sync-text').textContent = text;
-}
-
-/* ============================================================
-   Storage keys
-   ============================================================ */
-const STORAGE_KEY = 'filadelfia_fluxo_caixa_v2';         // dados importados
-const PROVISIONS_KEY = 'filadelfia_provisoes_v1';        // provisões manuais ativas
-const DELETED_IMPORTED_KEY = 'filadelfia_deleted_imp_v1'; // IDs de títulos importados ocultos
-const TRASH_KEY = 'filadelfia_trash_v1';                 // lixeira (manuais + importados excluídos)
-const AUTHOR_KEY = 'filadelfia_last_author';             // último nome usado
-
-/* ============================================================
-   Feriados & regras bancárias
-   ============================================================ */
-const FIXED_HOLIDAYS = [
-  [1,1],[4,21],[5,1],[9,7],[10,12],[11,2],[11,15],[11,20],[12,25]
-];
-
-function easterSunday(year) {
-  const a=year%19, b=Math.floor(year/100), c=year%100;
-  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
-  const g=Math.floor((b-f+1)/3);
-  const h=(19*a+b-d-g+15)%30;
-  const i=Math.floor(c/4), k=c%4;
-  const L=(32+2*e+2*i-h-k)%7;
-  const m=Math.floor((a+11*h+22*L)/451);
-  const month=Math.floor((h+L-7*m+114)/31);
-  const day=((h+L-7*m+114)%31)+1;
-  return new Date(year, month-1, day);
-}
-function movableHolidays(year) {
-  const e = easterSunday(year);
-  return [addDays(e,-48), addDays(e,-47), addDays(e,-2), addDays(e,60)];
-}
-function addDays(d, n) {
-  const r = new Date(d); r.setDate(r.getDate()+n); return stripTime(r);
-}
-function stripTime(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-const holidayCache = {};
-function isHoliday(d) {
-  const y = d.getFullYear();
-  if (!holidayCache[y]) {
-    const set = new Set();
-    FIXED_HOLIDAYS.forEach(([m,day]) => set.add(dateKey(new Date(y, m-1, day))));
-    movableHolidays(y).forEach(h => set.add(dateKey(h)));
-    holidayCache[y] = set;
-  }
-  return holidayCache[y].has(dateKey(d));
-}
-function isBusinessDay(d) {
-  const wd = d.getDay();
-  if (wd === 0 || wd === 6) return false;
-  if (isHoliday(d)) return false;
-  return true;
-}
-function nextBusinessDay(d) {
-  let r = new Date(d);
-  while (!isBusinessDay(r)) r = addDays(r, 1);
-  return r;
-}
-function nextBusinessDayStrict(d) {
-  let r = addDays(d, 1);
-  while (!isBusinessDay(r)) r = addDays(r, 1);
-  return r;
-}
-function effectiveDatePagar(due) { return nextBusinessDay(due); }
-function effectiveDateReceber(due) {
-  const payDay = nextBusinessDay(due);
-  return nextBusinessDayStrict(payDay);
-}
-
-/* ============================================================
-   Formatters
-   ============================================================ */
-const fmtMoney = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const fmtMoneyShort = v => v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const fmtCellMoney = v => Math.abs(v) < 0.005 ? '–' : fmtMoneyShort(v);
-const weekdayShort = d => ['dom','seg','ter','qua','qui','sex','sáb'][d.getDay()];
-const weekdayFull = d => ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'][d.getDay()];
-const parseDateKey = k => { const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d); };
-const fmtHeaderDate = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-const fmtFullDate = d => d.toLocaleDateString('pt-BR');
-const isWeekend = d => d.getDay() === 0 || d.getDay() === 6;
-const escapeHTML = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-function fmtRelativeTime(ts) {
-  const diff = (Date.now() - ts) / 1000;
-  if (diff < 60) return 'agora';
-  if (diff < 3600) return `${Math.floor(diff/60)}min atrás`;
-  if (diff < 86400) return `${Math.floor(diff/3600)}h atrás`;
-  if (diff < 604800) return `${Math.floor(diff/86400)}d atrás`;
-  return new Date(ts).toLocaleDateString('pt-BR');
-}
-
-/* ============================================================
-   State
-   ============================================================ */
-let dataStore = null;
-let provisions = [];         // lista de provisões manuais ativas
-let deletedImported = {};    // { titleId: { deletedAt, restoreData } }
-let trash = [];              // registros de lixeira
-let processed = null;
-let filteredDates = [];
-let viewMode = 'effective';
-let currentDetailKey = null; // chave para recarregar comentários na aba de detalhe
-let currentDetail = null;    // { kind, dateKey, vendorName, commentKey }
-
-/* ============================================================
-   Load persistence
-   ============================================================ */
-function loadData() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return false;
-  try { dataStore = JSON.parse(raw); } catch { return false; }
-
-  try { provisions = JSON.parse(localStorage.getItem(PROVISIONS_KEY) || '[]'); } catch { provisions = []; }
-  try { deletedImported = JSON.parse(localStorage.getItem(DELETED_IMPORTED_KEY) || '{}'); } catch { deletedImported = {}; }
-  try { trash = JSON.parse(localStorage.getItem(TRASH_KEY) || '[]'); } catch { trash = []; }
-
-  return true;
-}
-function saveProvisions() { localStorage.setItem(PROVISIONS_KEY, JSON.stringify(provisions)); }
-function saveDeletedImported() { localStorage.setItem(DELETED_IMPORTED_KEY, JSON.stringify(deletedImported)); }
-function saveTrash() { localStorage.setItem(TRASH_KEY, JSON.stringify(trash)); }
-
-/* ============================================================
-   Build index (with manual provisions)
-   ============================================================ */
-function buildIndex() {
-  // Merge: importados (não deletados) + provisões manuais
-  const titulosPagar = [];
-  const titulosReceber = [];
-
-  (dataStore?.titulosPagar || []).forEach(t => {
-    if (!deletedImported[t.id]) titulosPagar.push({ ...t, _manual: false });
-  });
-  (dataStore?.titulosReceber || []).forEach(t => {
-    if (!deletedImported[t.id]) titulosReceber.push({ ...t, _manual: false });
-  });
-
-  provisions.forEach(p => {
-    if (p.tipo === 'pagar') {
-      titulosPagar.push({
-        id: p.id,
-        fornecedor: p.entidade,
-        documento: p.documento || '',
-        vencimento: p.vencimento,
-        valor: p.valor,
-        _manual: true,
-        _author: p.autor,
-        _note: p.nota,
-        _createdAt: p.createdAt,
-      });
-    } else {
-      titulosReceber.push({
-        id: p.id,
-        cliente: p.entidade,
-        documento: p.documento || '',
-        vencimento: p.vencimento,
-        valor: p.valor,
-        _manual: true,
-        _author: p.autor,
-        _note: p.nota,
-        _createdAt: p.createdAt,
-      });
-    }
-  });
-
-  const vendorMap = new Map();  // fornecedor -> isManualRow flag + byDate Map
-  const dateSet = new Set();
-
-  titulosPagar.forEach(t => {
-    const due = parseDateKey(t.vencimento);
-    const eff = effectiveDatePagar(due);
-    const useDate = viewMode === 'effective' ? eff : due;
-    const k = dateKey(useDate);
-    dateSet.add(k);
-    if (!vendorMap.has(t.fornecedor)) vendorMap.set(t.fornecedor, { hasReal: false, hasManual: false, byDate: new Map() });
-    const entry = vendorMap.get(t.fornecedor);
-    if (t._manual) entry.hasManual = true; else entry.hasReal = true;
-    const byDate = entry.byDate;
-    if (!byDate.has(k)) byDate.set(k, { total: 0, titulos: [], hasManual: false });
-    const bucket = byDate.get(k);
-    bucket.total += t.valor;
-    if (t._manual) bucket.hasManual = true;
-    bucket.titulos.push({ ...t, vencimentoDate: t.vencimento, efetivaDate: dateKey(eff) });
-  });
-
-  const receberByDate = new Map();
-  const receberDetail = [];
-  titulosReceber.forEach(t => {
-    const due = parseDateKey(t.vencimento);
-    const eff = effectiveDateReceber(due);
-    const useDate = viewMode === 'effective' ? eff : due;
-    const k = dateKey(useDate);
-    dateSet.add(k);
-    if (!receberByDate.has(k)) receberByDate.set(k, { total: 0, titulos: [], hasManual: false });
-    const bucket = receberByDate.get(k);
-    bucket.total += t.valor;
-    if (t._manual) bucket.hasManual = true;
-    bucket.titulos.push({ ...t, vencimentoDate: t.vencimento, efetivaDate: dateKey(eff) });
-    receberDetail.push(t);
-  });
-
-  const allDates = [...dateSet].sort();
-
-  const vendors = [...vendorMap.entries()]
-    .map(([name, entry]) => {
-      let total = 0;
-      entry.byDate.forEach(b => total += b.total);
-      return { name, total, byDate: entry.byDate, hasManual: entry.hasManual, hasReal: entry.hasReal };
-    })
-    .sort((a, b) => b.total - a.total);
-
-  processed = { allDates, vendors, receberByDate };
-}
-
-/* ============================================================
-   Init
-   ============================================================ */
-function init() {
-  initFirebase();
-
-  if (!loadData() && provisions.length === 0) {
-    document.getElementById('empty-state').classList.remove('hidden');
-    document.getElementById('main-content').classList.add('hidden');
-
-    document.getElementById('btn-add-empty').addEventListener('click', () => openForm());
-    document.getElementById('menu-toggle').addEventListener('click', () => {
-      document.getElementById('nav').classList.toggle('open');
-    });
-    setupModalClose();
-    return;
-  }
-
-  if (!dataStore) dataStore = { titulosPagar: [], titulosReceber: [], processedAt: new Date().toISOString() };
-
-  document.getElementById('main-content').classList.remove('hidden');
-  document.getElementById('empty-state').classList.add('hidden');
-
-  buildIndex();
-
-  if (!processed.allDates.length) {
-    // Sem datas mas tem data structure - mostra estado vazio
-    document.getElementById('empty-state').classList.remove('hidden');
-    document.getElementById('main-content').classList.add('hidden');
-    document.getElementById('btn-add-empty').addEventListener('click', () => openForm());
-    setupModalClose();
-    return;
-  }
-
-  const startInput = document.getElementById('filter-start');
-  const endInput = document.getElementById('filter-end');
-  startInput.value = processed.allDates[0];
-  endInput.value = processed.allDates[processed.allDates.length - 1];
-  startInput.addEventListener('change', render);
-  endInput.addEventListener('change', render);
-
-  document.getElementById('btn-reset').addEventListener('click', resetPeriod);
-  document.getElementById('view-effective').addEventListener('click', () => setViewMode('effective'));
-  document.getElementById('view-due').addEventListener('click', () => setViewMode('due'));
-  document.getElementById('btn-add').addEventListener('click', () => openForm());
-  document.getElementById('btn-trash').addEventListener('click', openTrash);
-
-  // Export dropdown
-  const exportBtn = document.getElementById('btn-export-toggle');
-  const exportMenu = document.getElementById('export-menu');
-  exportBtn.addEventListener('click', (e) => { e.stopPropagation(); exportMenu.classList.toggle('open'); });
-  document.addEventListener('click', (e) => {
-    if (!exportMenu.contains(e.target) && e.target !== exportBtn) exportMenu.classList.remove('open');
-  });
-  exportMenu.querySelectorAll('button[data-export]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      exportMenu.classList.remove('open');
-      runExport(btn.dataset.export);
-    });
-  });
-
-  // Form
-  document.getElementById('form-type-toggle').querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('form-type-toggle').querySelectorAll('button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('form-entity-label').textContent = btn.dataset.type === 'pagar' ? 'Fornecedor' : 'Cliente / Descrição';
-    });
-  });
-  document.getElementById('btn-save').addEventListener('click', saveProvision);
-  document.getElementById('btn-add-comment').addEventListener('click', addComment);
-
-  setupModalClose();
-
-  document.getElementById('menu-toggle').addEventListener('click', () => {
-    document.getElementById('nav').classList.toggle('open');
-  });
-
-  // Escape closes any modal
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      ['detail-modal','form-modal','trash-modal'].forEach(id => document.getElementById(id).classList.remove('open'));
-    }
-  });
-
-  // Last update badge
-  if (dataStore.processedAt) {
-    const d = new Date(dataStore.processedAt);
-    const months = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mm = String(d.getMinutes()).padStart(2,'0');
-    document.getElementById('last-update').innerHTML =
-      `<span class="dot"></span>Importado ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} às ${hh}:${mm}`;
-  }
-
-  updateTrashCount();
-  render();
-}
-
-function setupModalClose() {
-  document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById(btn.dataset.close + '-modal').classList.remove('open');
-    });
-  });
-  ['detail','form','trash'].forEach(id => {
-    document.getElementById(id + '-modal').addEventListener('click', (e) => {
-      if (e.target.id === id + '-modal') document.getElementById(id + '-modal').classList.remove('open');
-    });
-  });
-}
-
-function resetPeriod() {
-  if (!processed?.allDates.length) return;
-  document.getElementById('filter-start').value = processed.allDates[0];
-  document.getElementById('filter-end').value = processed.allDates[processed.allDates.length - 1];
-  render();
-}
-
-function setViewMode(mode) {
-  viewMode = mode;
-  document.getElementById('view-effective').classList.toggle('active', mode === 'effective');
-  document.getElementById('view-due').classList.toggle('active', mode === 'due');
-  buildIndex();
-  const s = document.getElementById('filter-start').value;
-  const e = document.getElementById('filter-end').value;
-  if (!processed.allDates.includes(s)) document.getElementById('filter-start').value = processed.allDates[0];
-  if (!processed.allDates.includes(e)) document.getElementById('filter-end').value = processed.allDates[processed.allDates.length-1];
-  render();
-}
-
-/* ============================================================
-   Render
-   ============================================================ */
-function render() {
-  const s = document.getElementById('filter-start').value;
-  const e = document.getElementById('filter-end').value;
-  filteredDates = processed.allDates.filter(k => k >= s && k <= e);
-
-  if (!filteredDates.length) {
-    document.getElementById('grid').innerHTML = '<tbody><tr><td style="padding:40px;text-align:center;color:var(--text-muted)">Nenhum dado no período selecionado.</td></tr></tbody>';
-    document.getElementById('grid-sub').textContent = '';
-    return;
-  }
-
-  renderKPIs();
-  renderGrid();
-  renderSub();
-}
-
-function renderSub() {
-  const first = parseDateKey(filteredDates[0]);
-  const last = parseDateKey(filteredDates[filteredDates.length-1]);
-  const vendorCount = processed.vendors.filter(v => filteredDates.some(k => v.byDate.has(k))).length;
-  const modeLabel = viewMode === 'effective' ? 'data efetiva' : 'data de vencimento';
-  const manualCount = provisions.length;
-  document.getElementById('grid-sub').textContent =
-    `${vendorCount} fornecedores · ${filteredDates.length} dias · ${manualCount} lançamento${manualCount!==1?'s':''} manual · ${modeLabel}`;
-}
-
-function renderKPIs() {
-  let totalIn = 0, totalOut = 0, deficitDays = 0;
-  filteredDates.forEach(k => {
-    const rIn = processed.receberByDate.get(k)?.total || 0;
-    let rOut = 0;
-    processed.vendors.forEach(v => { rOut += v.byDate.get(k)?.total || 0; });
-    totalIn += rIn; totalOut += rOut;
-    if (rIn - rOut < -0.005) deficitDays++;
-  });
-  const net = totalIn - totalOut;
-  document.getElementById('kpi-in').textContent = fmtMoney(totalIn);
-  document.getElementById('kpi-out').textContent = fmtMoney(totalOut);
-  const netEl = document.getElementById('kpi-net');
-  netEl.textContent = fmtMoney(net);
-  netEl.className = 'value ' + (net >= 0 ? 'positive' : 'negative');
-  document.getElementById('kpi-in-sub').textContent = `em ${filteredDates.filter(k => (processed.receberByDate.get(k)?.total || 0) > 0).length} dias`;
-  document.getElementById('kpi-out-sub').textContent = `em ${filteredDates.filter(k => processed.vendors.some(v => (v.byDate.get(k)?.total || 0) > 0)).length} dias`;
-  document.getElementById('kpi-net-sub').textContent = net >= 0 ? 'Superavit no período' : 'Deficit no período';
-  document.getElementById('kpi-deficit').textContent = deficitDays;
-  document.getElementById('kpi-deficit-sub').textContent = `de ${filteredDates.length} dias`;
-}
-
-function commentKey(kind, dateK, vendor) {
-  // Chave do comentário no Firebase (sanitiza para regras do Realtime Database)
-  const safe = s => String(s).replace(/[.#$/[\]]/g, '_');
-  if (kind === 'receber') return `receber__${dateK}`;
-  return `pagar__${safe(vendor)}__${dateK}`;
-}
-function getCommentsForCell(kind, dateK, vendor) {
-  const key = commentKey(kind, dateK, vendor);
-  return commentsCache[key] || {};
-}
-function hasCommentsForCell(kind, dateK, vendor) {
-  return Object.keys(getCommentsForCell(kind, dateK, vendor)).length > 0;
-}
-
-function renderGrid() {
-  const grid = document.getElementById('grid');
-  const activeVendors = processed.vendors.filter(v => filteredDates.some(k => v.byDate.has(k)));
-
-  let html = '<thead><tr>';
-  html += `<th class="first">Fornecedor / Conta</th>`;
-  filteredDates.forEach(k => {
-    const d = parseDateKey(k);
-    const we = isWeekend(d) ? ' weekend' : '';
-    html += `<th class="${we.trim()}">${fmtHeaderDate(d)}<span class="wd">${weekdayShort(d)}</span></th>`;
-  });
-  html += '<th style="border-left:1.5px solid var(--border-strong);">Total</th>';
-  html += '</tr></thead>';
-
-  html += '<tbody>';
-
-  // Entradas
-  html += `<tr class="section-divider"><td class="first" colspan="${filteredDates.length + 2}">↑ Entradas</td></tr>`;
-  const rTotal = filteredDates.reduce((s, k) => s + (processed.receberByDate.get(k)?.total || 0), 0);
-  html += `<tr class="receber-row">`;
-  html += `<td class="first"><div class="row-label"><div class="name-group"><span class="nm">Contas a Receber</span><span class="sub">Total de recebimentos</span></div></div></td>`;
-  filteredDates.forEach(k => {
-    const d = parseDateKey(k);
-    const bucket = processed.receberByDate.get(k);
-    const v = bucket?.total || 0;
-    const we = isWeekend(d) ? ' weekend' : '';
-    const hasComment = hasCommentsForCell('receber', k, null);
-    const commentDot = hasComment ? '<span class="comment-dot"></span>' : '';
-    if (v > 0) {
-      const manualCls = bucket?.hasManual ? ' manual-val' : ' in-val';
-      html += `<td class="${manualCls.trim()}${we}" data-detail="receber" data-date="${k}"><span>${fmtCellMoney(v)}</span>${commentDot}</td>`;
-    } else {
-      html += `<td class="empty${we}" data-add="receber" data-date="${k}"><span>–</span>${commentDot}</td>`;
-    }
-  });
-  html += `<td class="in-val" style="border-left:1.5px solid var(--border-strong);">${fmtCellMoney(rTotal)}</td>`;
-  html += `</tr>`;
-
-  // Saídas
-  html += `<tr class="section-divider"><td class="first" colspan="${filteredDates.length + 2}">↓ Saídas por fornecedor</td></tr>`;
-  activeVendors.forEach(v => {
-    const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
-    const isOnlyManual = v.hasManual && !v.hasReal;
-    const rowClass = isOnlyManual ? 'vendor-row manual-row' : 'vendor-row';
-    html += `<tr class="${rowClass}">`;
-    const manualTag = isOnlyManual ? '<span class="tag manual">MANUAL</span>' : '';
-    const deleteRowBtn = isOnlyManual
-      ? `<button class="danger" title="Excluir linha manual" data-delete-vendor="${escapeHTML(v.name)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button>`
-      : '';
-    html += `<td class="first"><div class="row-label"><div class="name-group"><span class="nm" title="${escapeHTML(v.name)}">${escapeHTML(v.name)}${manualTag}</span></div><div class="row-actions">${deleteRowBtn}</div></div></td>`;
-    filteredDates.forEach(k => {
-      const d = parseDateKey(k);
-      const bucket = v.byDate.get(k);
-      const val = bucket?.total || 0;
-      const we = isWeekend(d) ? ' weekend' : '';
-      const hasComment = hasCommentsForCell('pagar', k, v.name);
-      const commentDot = hasComment ? '<span class="comment-dot"></span>' : '';
-      if (val > 0) {
-        const cls = bucket?.hasManual ? 'manual-val' : 'out-val';
-        html += `<td class="${cls}${we}" data-detail="pagar" data-date="${k}" data-vendor="${escapeHTML(v.name)}"><span>${fmtCellMoney(val)}</span>${commentDot}</td>`;
-      } else {
-        html += `<td class="empty${we}" data-add="pagar" data-date="${k}" data-vendor="${escapeHTML(v.name)}"><span>–</span>${commentDot}</td>`;
-      }
-    });
-    html += `<td class="out-val" style="border-left:1.5px solid var(--border-strong);">${fmtCellMoney(vTotal)}</td>`;
-    html += `</tr>`;
-  });
-
-  html += '</tbody>';
-
-  // Totals
-  html += '<tfoot>';
-  html += `<tr class="subtotal-out"><td class="first">Total Contas a Pagar</td>`;
-  let subOutTotal = 0;
-  filteredDates.forEach(k => {
-    const sum = activeVendors.reduce((s, v) => s + (v.byDate.get(k)?.total || 0), 0);
-    subOutTotal += sum;
-    html += `<td>${fmtCellMoney(sum)}</td>`;
-  });
-  html += `<td style="border-left:1.5px solid var(--border-strong);">${fmtCellMoney(subOutTotal)}</td></tr>`;
-
-  html += `<tr class="saldo"><td class="first">Saldo do dia</td>`;
-  let saldoTotal = 0;
-  filteredDates.forEach(k => {
-    const inD = processed.receberByDate.get(k)?.total || 0;
-    const outD = activeVendors.reduce((s, v) => s + (v.byDate.get(k)?.total || 0), 0);
-    const s = inD - outD;
-    saldoTotal += s;
-    html += `<td class="${s >= 0 ? 'positive-bal' : 'negative-bal'}">${Math.abs(s) < 0.005 ? '–' : fmtMoneyShort(s)}</td>`;
-  });
-  html += `<td class="${saldoTotal >= 0 ? 'positive-bal' : 'negative-bal'}" style="border-left:1.5px solid var(--border-strong);">${fmtMoneyShort(saldoTotal)}</td></tr>`;
-
-  html += `<tr class="acumulado"><td class="first">Saldo acumulado</td>`;
-  let acc = 0;
-  filteredDates.forEach(k => {
-    const inD = processed.receberByDate.get(k)?.total || 0;
-    const outD = activeVendors.reduce((s, v) => s + (v.byDate.get(k)?.total || 0), 0);
-    acc += (inD - outD);
-    html += `<td class="${acc >= 0 ? 'positive-bal' : 'negative-bal'}">${fmtMoneyShort(acc)}</td>`;
-  });
-  html += `<td class="${acc >= 0 ? 'positive-bal' : 'negative-bal'}" style="border-left:1.5px solid var(--border-strong);">${fmtMoneyShort(acc)}</td></tr>`;
-  html += '</tfoot>';
-
-  grid.innerHTML = html;
-
-  // Handlers
-  grid.querySelectorAll('[data-detail]').forEach(cell => {
-    cell.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openDetail(cell.dataset.detail, cell.dataset.date, cell.dataset.vendor);
-    });
-  });
-  grid.querySelectorAll('[data-add]').forEach(cell => {
-    cell.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openForm({
-        tipo: cell.dataset.add,
-        vencimento: cell.dataset.date,
-        entidade: cell.dataset.vendor || '',
-      });
-    });
-  });
-  grid.querySelectorAll('[data-delete-vendor]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteManualVendorRow(btn.dataset.deleteVendor);
-    });
-  });
-}
-
-/* ============================================================
-   Form (novo / editar)
-   ============================================================ */
-function openForm(prefill = {}) {
-  const tipo = prefill.tipo || 'pagar';
-  document.getElementById('form-type-toggle').querySelectorAll('button').forEach(b => {
-    b.classList.toggle('active', b.dataset.type === tipo);
-  });
-  document.getElementById('form-entity-label').textContent = tipo === 'pagar' ? 'Fornecedor' : 'Cliente / Descrição';
-  document.getElementById('form-entity').value = prefill.entidade || '';
-  document.getElementById('form-date').value = prefill.vencimento || dateKey(new Date());
-  document.getElementById('form-value').value = '';
-  document.getElementById('form-doc').value = '';
-  document.getElementById('form-note').value = '';
-  document.getElementById('form-author').value = localStorage.getItem(AUTHOR_KEY) || '';
-  document.getElementById('form-modal').classList.add('open');
-  setTimeout(() => document.getElementById('form-entity').focus(), 100);
-}
-
-function saveProvision() {
-  const tipo = document.getElementById('form-type-toggle').querySelector('.active').dataset.type;
-  const entidade = document.getElementById('form-entity').value.trim();
-  const dateVal = document.getElementById('form-date').value;
-  const valor = parseFloat(document.getElementById('form-value').value);
-  const documento = document.getElementById('form-doc').value.trim();
-  const nota = document.getElementById('form-note').value.trim();
-  const autor = document.getElementById('form-author').value.trim() || 'Anônimo';
-
-  if (!entidade) { showToast('Informe o fornecedor/cliente', 'error'); return; }
-  if (!dateVal) { showToast('Informe a data de vencimento', 'error'); return; }
-  if (!valor || valor <= 0) { showToast('Informe um valor positivo', 'error'); return; }
-
-  const prov = {
-    id: 'M' + Date.now() + Math.random().toString(36).slice(2, 8),
-    tipo,
-    entidade,
-    vencimento: dateVal,
-    valor,
-    documento,
-    nota,
-    autor,
-    createdAt: Date.now(),
-  };
-
-  provisions.push(prov);
-  saveProvisions();
-  localStorage.setItem(AUTHOR_KEY, autor);
-
-  document.getElementById('form-modal').classList.remove('open');
-  rebuildAndRender();
-  showToast('Lançamento manual criado', 'success');
-}
-
-/* ============================================================
-   Delete / restore
-   ============================================================ */
-function deleteProvision(provId) {
-  const idx = provisions.findIndex(p => p.id === provId);
-  if (idx === -1) return;
-  const prov = provisions[idx];
-  provisions.splice(idx, 1);
-  saveProvisions();
-  trash.push({
-    kind: 'provision',
-    deletedAt: Date.now(),
-    data: prov,
-  });
-  saveTrash();
-  rebuildAndRender();
-  updateTrashCount();
-  showToast('Lançamento enviado à lixeira', 'success', { label: 'Desfazer', action: () => restoreFromTrash(trash.length - 1) });
-}
-
-function deleteImportedTitle(title, kind) {
-  deletedImported[title.id] = { deletedAt: Date.now() };
-  saveDeletedImported();
-  trash.push({
-    kind: 'imported',
-    deletedAt: Date.now(),
-    data: { ...title, _kind: kind },
-  });
-  saveTrash();
-  rebuildAndRender();
-  updateTrashCount();
-  showToast('Título importado ocultado', 'success', { label: 'Desfazer', action: () => restoreFromTrash(trash.length - 1) });
-}
-
-function deleteManualVendorRow(vendorName) {
-  const affected = provisions.filter(p => p.tipo === 'pagar' && p.entidade === vendorName);
-  if (!affected.length) return;
-  if (!confirm(`Excluir todos os ${affected.length} lançamento(s) manuais de "${vendorName}"?`)) return;
-
-  affected.forEach(p => {
-    trash.push({ kind: 'provision', deletedAt: Date.now(), data: p });
-  });
-  provisions = provisions.filter(p => !(p.tipo === 'pagar' && p.entidade === vendorName));
-  saveProvisions();
-  saveTrash();
-  rebuildAndRender();
-  updateTrashCount();
-  showToast(`${affected.length} lançamento(s) enviados à lixeira`, 'success');
-}
-
-function restoreFromTrash(idx) {
-  const item = trash[idx];
-  if (!item) return;
-  if (item.kind === 'provision') {
-    provisions.push(item.data);
-    saveProvisions();
-  } else if (item.kind === 'imported') {
-    delete deletedImported[item.data.id];
-    saveDeletedImported();
-  }
-  trash.splice(idx, 1);
-  saveTrash();
-  rebuildAndRender();
-  updateTrashCount();
-  if (document.getElementById('trash-modal').classList.contains('open')) renderTrashTab(currentTrashTab);
-  showToast('Restaurado', 'success');
-}
-
-function emptyTrash() {
-  if (!trash.length) return;
-  if (!confirm(`Apagar definitivamente ${trash.length} item(ns) da lixeira? Esta ação não pode ser desfeita.`)) return;
-  trash = [];
-  saveTrash();
-  updateTrashCount();
-  renderTrashTab(currentTrashTab);
-  showToast('Lixeira esvaziada', 'success');
-}
-
-function updateTrashCount() {
-  const el = document.getElementById('trash-count');
-  if (trash.length > 0) {
-    el.textContent = trash.length;
-    el.style.display = 'inline-block';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
-function rebuildAndRender() {
-  buildIndex();
-  // preserve filters when possible
-  const s = document.getElementById('filter-start').value;
-  const e = document.getElementById('filter-end').value;
-  if (processed.allDates.length) {
-    if (!processed.allDates.some(k => k >= s && k <= e)) {
-      document.getElementById('filter-start').value = processed.allDates[0];
-      document.getElementById('filter-end').value = processed.allDates[processed.allDates.length-1];
-    }
-  }
-  render();
-  if (currentDetailKey) {
-    // recarrega detalhes se modal aberto
-    if (document.getElementById('detail-modal').classList.contains('open') && currentDetail) {
-      openDetail(currentDetail.kind, currentDetail.dateKey, currentDetail.vendorName);
-    }
-  }
-}
-
-/* ============================================================
-   Detail modal (títulos + comentários)
-   ============================================================ */
-function openDetail(kind, dk, vendorName) {
-  const d = parseDateKey(dk);
-  let titulos = [], total = 0, title = '', subtitle = '';
-
-  if (kind === 'receber') {
-    const bucket = processed.receberByDate.get(dk);
-    titulos = bucket?.titulos || [];
-    total = bucket?.total || 0;
-    title = 'Contas a Receber';
-    subtitle = `${titulos.length} título${titulos.length !== 1 ? 's' : ''} · ${weekdayFull(d)}, ${fmtFullDate(d)}`;
-  } else {
-    const vendor = processed.vendors.find(v => v.name === vendorName);
-    const bucket = vendor?.byDate.get(dk);
-    titulos = bucket?.titulos || [];
-    total = bucket?.total || 0;
-    title = vendorName;
-    subtitle = `${titulos.length} título${titulos.length !== 1 ? 's' : ''} · ${weekdayFull(d)}, ${fmtFullDate(d)}`;
-  }
-
-  currentDetail = { kind, dateKey: dk, vendorName };
-  currentDetailKey = commentKey(kind, dk, vendorName);
-
-  document.getElementById('detail-title').textContent = title;
-  document.getElementById('detail-subtitle').textContent = subtitle;
-
-  const modeLabel = viewMode === 'effective' ? 'Efetiva (após regra bancária)' : 'Vencimento';
-  document.getElementById('detail-date-info').innerHTML = `
-    <span class="date-chip">Exibido por: <strong>${modeLabel}</strong></span>
-    <span class="date-chip">Data: <strong>${fmtFullDate(d)}</strong></span>
-  `;
-
-  const thead = document.getElementById('detail-thead');
-  const tbody = document.getElementById('detail-tbody');
-  const isReceber = kind === 'receber';
-  const entityCol = isReceber ? 'Cliente' : 'Fornecedor';
-  const valueCls = isReceber ? 'value-in' : 'value-out';
-
-  thead.innerHTML = `
-    <tr>
-      <th>Documento</th>
-      <th>${entityCol}</th>
-      <th>Vencimento</th>
-      <th>Data efetiva</th>
-      <th class="right">Valor</th>
-      <th class="right"></th>
-    </tr>
-  `;
-
-  tbody.innerHTML = titulos.length === 0
-    ? `<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--text-muted)">Nenhum título nesta data.</td></tr>`
-    : titulos.map(t => {
-      const name = (isReceber ? t.cliente : t.fornecedor) || '—';
-      const manualTag = t._manual ? '<span class="tag">MANUAL</span>' : '';
-      const noteLine = t._note ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:'JetBrains Mono',monospace;">${escapeHTML(t._note)}</div>` : '';
-      return `
-        <tr class="${t._manual ? 'manual-title' : ''}">
-          <td class="doc">${escapeHTML(t.documento || '—')}</td>
-          <td>${escapeHTML(name)}${manualTag}${noteLine}</td>
-          <td>${fmtFullDate(parseDateKey(t.vencimentoDate))}</td>
-          <td>${fmtFullDate(parseDateKey(t.efetivaDate))}</td>
-          <td class="right ${valueCls}">${fmtMoney(t.valor)}</td>
-          <td class="right">
-            <button class="row-del-btn" data-title-id="${t.id}" data-title-manual="${t._manual ? '1' : '0'}" data-title-kind="${kind}" title="Excluir título">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-            </button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-  tbody.querySelectorAll('[data-title-id]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tid = btn.dataset.titleId;
-      const isManual = btn.dataset.titleManual === '1';
-      const k = btn.dataset.titleKind;
-      if (isManual) {
-        if (confirm('Excluir este lançamento manual? Será enviado à lixeira.')) deleteProvision(tid);
-      } else {
-        if (confirm('Ocultar este título importado? Será enviado à lixeira e pode ser restaurado depois.')) {
-          const list = k === 'receber' ? dataStore.titulosReceber : dataStore.titulosPagar;
-          const original = list.find(t => t.id === tid);
-          if (original) deleteImportedTitle(original, k);
-        }
-      }
-    });
-  });
-
-  const totalEl = document.getElementById('detail-total');
-  totalEl.textContent = fmtMoney(total);
-  totalEl.className = 'total-value ' + (isReceber ? 'in' : 'out');
-
-  refreshDetailComments();
-  document.getElementById('detail-modal').classList.add('open');
-}
-
-/* ============================================================
-   Comments (Firebase)
-   ============================================================ */
-function refreshDetailComments() {
-  if (!currentDetail) return;
-  const comments = getCommentsForCell(currentDetail.kind, currentDetail.dateKey, currentDetail.vendorName);
-  const list = Object.entries(comments)
-    .map(([id, c]) => ({ id, ...c }))
-    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-
-  document.getElementById('comment-count').textContent = list.length;
-  const listEl = document.getElementById('comments-list');
-  if (!list.length) {
-    listEl.innerHTML = '<div class="comment-empty">Nenhum comentário ainda. Seja o primeiro!</div>';
-  } else {
-    listEl.innerHTML = list.map(c => `
-      <div class="comment">
-        <div class="meta">
-          <span class="author">${escapeHTML(c.author || 'Anônimo')}</span>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span class="time" title="${new Date(c.createdAt).toLocaleString('pt-BR')}">${fmtRelativeTime(c.createdAt)}</span>
-            <button class="del-btn" data-comment-id="${c.id}">Excluir</button>
-          </div>
-        </div>
-        <div class="text">${escapeHTML(c.text)}</div>
-      </div>
-    `).join('');
-    listEl.querySelectorAll('[data-comment-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (confirm('Excluir este comentário?')) deleteComment(btn.dataset.commentId);
-      });
-    });
-  }
-
-  document.getElementById('comment-author').value = localStorage.getItem(AUTHOR_KEY) || '';
-}
-
-function addComment() {
-  if (!currentDetail) return;
-  const author = document.getElementById('comment-author').value.trim();
-  const text = document.getElementById('comment-text').value.trim();
-  if (!author) { showToast('Informe seu nome', 'error'); return; }
-  if (!text) { showToast('Escreva um comentário', 'error'); return; }
-
-  const key = commentKey(currentDetail.kind, currentDetail.dateKey, currentDetail.vendorName);
-  const payload = {
-    author,
-    text,
-    createdAt: firebase.database?.ServerValue?.TIMESTAMP || Date.now(),
-  };
-
-  localStorage.setItem(AUTHOR_KEY, author);
-
-  if (!firebaseDB) {
-    showToast('Firebase não configurado — comentário não enviado', 'error');
-    return;
-  }
-
-  const ref = firebaseDB.ref(`filadelfia/comentarios/${key}`).push();
-  ref.set(payload).then(() => {
-    document.getElementById('comment-text').value = '';
-    showToast('Comentário publicado', 'success');
-  }).catch(err => {
-    console.error(err);
-    showToast('Erro ao enviar comentário', 'error');
-  });
-}
-
-function deleteComment(commentId) {
-  if (!currentDetail || !firebaseDB) return;
-  const key = commentKey(currentDetail.kind, currentDetail.dateKey, currentDetail.vendorName);
-  firebaseDB.ref(`filadelfia/comentarios/${key}/${commentId}`).remove()
-    .then(() => showToast('Comentário excluído', 'success'))
-    .catch(() => showToast('Erro ao excluir', 'error'));
-}
-
-/* ============================================================
-   Trash
-   ============================================================ */
-let currentTrashTab = 'manual';
-function openTrash() {
-  document.getElementById('trash-modal').classList.add('open');
-  document.querySelectorAll('.trash-modal .tabs button').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === currentTrashTab);
-    btn.onclick = () => {
-      currentTrashTab = btn.dataset.tab;
-      document.querySelectorAll('.trash-modal .tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === currentTrashTab));
-      renderTrashTab(currentTrashTab);
-    };
-  });
-  document.getElementById('btn-empty-trash').onclick = emptyTrash;
-  renderTrashTab(currentTrashTab);
-}
-
-function renderTrashTab(tab) {
-  const body = document.getElementById('trash-body');
-  const info = document.getElementById('trash-info');
-
-  const filtered = trash.map((t, i) => ({ ...t, _idx: i })).filter(t =>
-    tab === 'manual' ? t.kind === 'provision' : t.kind === 'imported'
-  );
-
-  info.textContent = `${filtered.length} item${filtered.length !== 1 ? 'ns' : ''} · Total na lixeira: ${trash.length}`;
-
-  if (!filtered.length) {
-    body.innerHTML = '<div class="empty-trash">Nenhum item nesta aba.</div>';
-    return;
-  }
-
-  body.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Tipo</th>
-          <th>Entidade</th>
-          <th>Vencimento</th>
-          <th class="right">Valor</th>
-          <th>Excluído</th>
-          <th class="right">Ação</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${filtered.map(item => {
-          const d = item.data;
-          const isProv = item.kind === 'provision';
-          const typeBadge = isProv
-            ? (d.tipo === 'pagar' ? '<span style="color:var(--danger-text);font-weight:600">Pagar (M)</span>' : '<span style="color:var(--accent-text);font-weight:600">Receber (M)</span>')
-            : (d._kind === 'pagar' ? '<span style="color:var(--danger-text)">Pagar</span>' : '<span style="color:var(--accent-text)">Receber</span>');
-          const entity = isProv ? d.entidade : (d._kind === 'pagar' ? d.fornecedor : d.cliente);
-          const venc = isProv ? d.vencimento : d.vencimento;
-          return `
-            <tr>
-              <td>${typeBadge}</td>
-              <td>${escapeHTML(entity || '—')}</td>
-              <td>${fmtFullDate(parseDateKey(venc))}</td>
-              <td class="right">${fmtMoney(d.valor || 0)}</td>
-              <td><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);">${fmtRelativeTime(item.deletedAt)}</span></td>
-              <td class="right"><button class="restore-btn" data-restore-idx="${item._idx}">Restaurar</button></td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
-  `;
-
-  body.querySelectorAll('[data-restore-idx]').forEach(btn => {
-    btn.addEventListener('click', () => restoreFromTrash(parseInt(btn.dataset.restoreIdx)));
-  });
-}
-
-/* ============================================================
-   Toast
-   ============================================================ */
-let toastTimer = null;
-function showToast(text, type = 'success', action = null) {
-  const toast = document.getElementById('toast');
-  const actionBtn = document.getElementById('toast-action');
-  document.getElementById('toast-text').textContent = text;
-  toast.className = 'toast open ' + type;
-
-  if (action) {
-    actionBtn.textContent = action.label;
-    actionBtn.classList.remove('hidden');
-    actionBtn.onclick = () => { action.action(); hideToast(); };
-  } else {
-    actionBtn.classList.add('hidden');
-  }
-
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(hideToast, action ? 6000 : 3000);
-}
-function hideToast() {
-  document.getElementById('toast').classList.remove('open');
-}
-
-/* ============================================================
-   Loading
-   ============================================================ */
-function showLoading(text) {
-  document.getElementById('loading-text').textContent = text;
-  document.getElementById('loading').classList.add('open');
-}
-function hideLoading() { document.getElementById('loading').classList.remove('open'); }
-
-function getExportFilename(ext) {
-  const s = document.getElementById('filter-start').value;
-  const e = document.getElementById('filter-end').value;
-  return `filadelfia_fluxo_caixa_${s}_a_${e}.${ext}`;
-}
-
-function runExport(kind) {
-  if (!filteredDates.length) { alert('Nenhum dado no período selecionado.'); return; }
-  switch (kind) {
-    case 'csv': exportCSV(); break;
-    case 'xlsx': exportXLSX(); break;
-    case 'pdf': exportPDF(); break;
-    case 'png': exportPNG(); break;
-  }
-}
-
-/* ============================================================
-   Export: CSV, XLSX, PNG, PDF (from earlier, adapted)
-   ============================================================ */
-function csvCell(v) {
-  const s = String(v);
-  if (s.includes(';') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
-  return s;
-}
-function money(v) { return v.toFixed(2).replace('.', ','); }
-
-function exportCSV() {
-  const activeVendors = processed.vendors.filter(v => filteredDates.some(k => v.byDate.has(k)));
-  const lines = [];
-  lines.push(['Item', ...filteredDates.map(k => fmtFullDate(parseDateKey(k))), 'Total'].map(csvCell).join(';'));
-
-  let rTotal = 0;
-  const rRow = filteredDates.map(k => { const v = processed.receberByDate.get(k)?.total || 0; rTotal += v; return money(v); });
-  lines.push(['Contas a Receber', ...rRow, money(rTotal)].map(csvCell).join(';'));
-
-  activeVendors.forEach(v => {
-    let t = 0;
-    const row = filteredDates.map(k => { const val = v.byDate.get(k)?.total || 0; t += val; return money(val); });
-    lines.push([v.name, ...row, money(t)].map(csvCell).join(';'));
-  });
-
-  let subOut = 0;
-  const subRow = filteredDates.map(k => {
-    const s = activeVendors.reduce((a, v) => a + (v.byDate.get(k)?.total || 0), 0);
-    subOut += s; return money(s);
-  });
-  lines.push(['Total Contas a Pagar', ...subRow, money(subOut)].map(csvCell).join(';'));
-
-  let sT = 0;
-  const sRow = filteredDates.map(k => {
-    const inD = processed.receberByDate.get(k)?.total || 0;
-    const outD = activeVendors.reduce((a, v) => a + (v.byDate.get(k)?.total || 0), 0);
-    const s = inD - outD; sT += s; return money(s);
-  });
-  lines.push(['Saldo do dia', ...sRow, money(sT)].map(csvCell).join(';'));
-
-  let acc = 0;
-  const accRow = filteredDates.map(k => {
-    const inD = processed.receberByDate.get(k)?.total || 0;
-    const outD = activeVendors.reduce((a, v) => a + (v.byDate.get(k)?.total || 0), 0);
-    acc += (inD - outD); return money(acc);
-  });
-  lines.push(['Saldo acumulado', ...accRow, money(acc)].map(csvCell).join(';'));
-
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-  downloadBlob(blob, getExportFilename('csv'));
-}
-
-function exportXLSX() {
-  showLoading('Gerando planilha…');
-  setTimeout(() => {
-    try {
-      const activeVendors = processed.vendors.filter(v => filteredDates.some(k => v.byDate.has(k)));
-      const aoa = [];
-      aoa.push(['Item', ...filteredDates.map(k => fmtFullDate(parseDateKey(k))), 'Total']);
-
-      let rTotal = 0;
-      aoa.push(['Contas a Receber', ...filteredDates.map(k => { const v = processed.receberByDate.get(k)?.total || 0; rTotal += v; return v; }), rTotal]);
-
-      activeVendors.forEach(v => {
-        let t = 0;
-        const row = [v.name];
-        filteredDates.forEach(k => { const val = v.byDate.get(k)?.total || 0; t += val; row.push(val); });
-        row.push(t); aoa.push(row);
-      });
-
-      let subOut = 0;
-      aoa.push(['Total Contas a Pagar', ...filteredDates.map(k => { const s = activeVendors.reduce((a, v) => a + (v.byDate.get(k)?.total || 0), 0); subOut += s; return s; }), subOut]);
-
-      let sT = 0;
-      aoa.push(['Saldo do dia', ...filteredDates.map(k => {
-        const inD = processed.receberByDate.get(k)?.total || 0;
-        const outD = activeVendors.reduce((a, v) => a + (v.byDate.get(k)?.total || 0), 0);
-        const s = inD - outD; sT += s; return s;
-      }), sT]);
-
-      let acc = 0;
-      aoa.push(['Saldo acumulado', ...filteredDates.map(k => {
-        const inD = processed.receberByDate.get(k)?.total || 0;
-        const outD = activeVendors.reduce((a, v) => a + (v.byDate.get(k)?.total || 0), 0);
-        acc += (inD - outD); return acc;
-      }), acc]);
-
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      for (let R = 1; R <= range.e.r; R++) {
-        for (let C = 1; C <= range.e.c; C++) {
-          const addr = XLSX.utils.encode_cell({ r: R, c: C });
-          if (ws[addr] && typeof ws[addr].v === 'number') {
-            ws[addr].z = 'R$ #,##0.00;[Red]-R$ #,##0.00';
-            ws[addr].t = 'n';
-          }
-        }
-      }
-      ws['!cols'] = [{ wch: 36 }, ...filteredDates.map(() => ({ wch: 14 })), { wch: 16 }];
-      ws['!freeze'] = { xSplit: 1, ySplit: 1 };
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Fluxo de Caixa');
-
-      // Sheet 2: títulos detalhados
-      const detailAoa = [['Tipo','Vencimento','Data efetiva','Cliente / Fornecedor','Documento','Valor','Manual?']];
-      const mergedPagar = (dataStore.titulosPagar || []).filter(t => !deletedImported[t.id]).map(t => ({...t, _manual: false}));
-      const mergedReceber = (dataStore.titulosReceber || []).filter(t => !deletedImported[t.id]).map(t => ({...t, _manual: false}));
-      provisions.forEach(p => {
-        if (p.tipo === 'pagar') mergedPagar.push({id:p.id, fornecedor:p.entidade, documento:p.documento||'', vencimento:p.vencimento, valor:p.valor, _manual:true});
-        else mergedReceber.push({id:p.id, cliente:p.entidade, documento:p.documento||'', vencimento:p.vencimento, valor:p.valor, _manual:true});
-      });
-      mergedReceber.forEach(t => {
-        const due = parseDateKey(t.vencimento);
-        const eff = effectiveDateReceber(due);
-        if (dateInRange(viewMode === 'effective' ? eff : due)) {
-          detailAoa.push(['Receber', fmtFullDate(due), fmtFullDate(eff), t.cliente || '', t.documento || '', t.valor, t._manual ? 'Sim' : 'Não']);
-        }
-      });
-      mergedPagar.forEach(t => {
-        const due = parseDateKey(t.vencimento);
-        const eff = effectiveDatePagar(due);
-        if (dateInRange(viewMode === 'effective' ? eff : due)) {
-          detailAoa.push(['Pagar', fmtFullDate(due), fmtFullDate(eff), t.fornecedor || '', t.documento || '', t.valor, t._manual ? 'Sim' : 'Não']);
-        }
-      });
-      const ws2 = XLSX.utils.aoa_to_sheet(detailAoa);
-      ws2['!cols'] = [{wch:9},{wch:14},{wch:14},{wch:40},{wch:18},{wch:14},{wch:10}];
-      const r2 = XLSX.utils.decode_range(ws2['!ref']);
-      for (let R = 1; R <= r2.e.r; R++) {
-        const addr = XLSX.utils.encode_cell({ r: R, c: 5 });
-        if (ws2[addr]) { ws2[addr].z = 'R$ #,##0.00;[Red]-R$ #,##0.00'; ws2[addr].t = 'n'; }
-      }
-      XLSX.utils.book_append_sheet(wb, ws2, 'Títulos detalhados');
-
-      XLSX.writeFile(wb, getExportFilename('xlsx'));
-      hideLoading();
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao gerar planilha: ' + err.message);
-      hideLoading();
-    }
-  }, 50);
-}
-
-function dateInRange(d) {
-  const k = dateKey(d);
-  const s = document.getElementById('filter-start').value;
-  const e = document.getElementById('filter-end').value;
-  return k >= s && k <= e;
-}
-
-async function exportPNG() {
-  showLoading('Gerando imagem…');
-  const card = document.getElementById('grid-card');
-  const scroll = document.getElementById('grid-scroll');
-  const originalMaxHeight = scroll.style.maxHeight;
-  scroll.style.maxHeight = 'none';
-  scroll.classList.add('export-mode');
-  try {
-    await new Promise(r => setTimeout(r, 80));
-    const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
-    canvas.toBlob(blob => {
-      if (blob) downloadBlob(blob, getExportFilename('png'));
-      scroll.style.maxHeight = originalMaxHeight;
-      scroll.classList.remove('export-mode');
-      hideLoading();
-    }, 'image/png');
-  } catch (err) {
-    console.error(err);
-    alert('Erro ao gerar imagem: ' + err.message);
-    scroll.style.maxHeight = originalMaxHeight;
-    scroll.classList.remove('export-mode');
-    hideLoading();
-  }
-}
-
-async function exportPDF() {
-  showLoading('Gerando PDF…');
-  const card = document.getElementById('grid-card');
-  const scroll = document.getElementById('grid-scroll');
-  const originalMaxHeight = scroll.style.maxHeight;
-  scroll.style.maxHeight = 'none';
-  scroll.classList.add('export-mode');
-  try {
-    await new Promise(r => setTimeout(r, 80));
-    const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
-    const { jsPDF } = window.jspdf;
-    const imgData = canvas.toDataURL('image/png');
-    const w = canvas.width, h = canvas.height;
-    const landscape = w > h;
-    const pdf = new jsPDF({ orientation: landscape ? 'l' : 'p', unit: 'mm', format: 'a4', compress: true });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 8;
-
-    pdf.setFillColor(10,14,22);
-    pdf.rect(0, 0, pageW, 14, 'F');
-    pdf.setTextColor(255,255,255);
-    pdf.setFontSize(10); pdf.setFont('helvetica','bold');
-    pdf.text('FILADÉLFIA · Fluxo de Caixa', margin, 9);
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(8);
-    const s = document.getElementById('filter-start').value;
-    const e = document.getElementById('filter-end').value;
-    pdf.text(`${fmtFullDate(parseDateKey(s))} a ${fmtFullDate(parseDateKey(e))} · ${viewMode === 'effective' ? 'Data efetiva' : 'Vencimento'}`, pageW - margin, 9, { align: 'right' });
-
-    const topOffset = 18;
-    const maxWidth = pageW - margin * 2;
-    const maxHeight = pageH - topOffset - margin - 6;
-    const scale = Math.min(maxWidth / (w / 2.83465), maxHeight / (h / 2.83465));
-    const effW = (w / 192) * 25.4 * scale;
-    const effH = (h / 192) * 25.4 * scale;
-    pdf.addImage(imgData, 'PNG', margin, topOffset, effW, effH, undefined, 'FAST');
-
-    pdf.setTextColor(107,114,128); pdf.setFontSize(7);
-    pdf.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · Desenvolvido por R2 Soluções Empresariais`, pageW/2, pageH-4, { align: 'center' });
-
-    pdf.save(getExportFilename('pdf'));
-    scroll.style.maxHeight = originalMaxHeight;
-    scroll.classList.remove('export-mode');
-    hideLoading();
-  } catch (err) {
-    console.error(err);
-    alert('Erro ao gerar PDF: ' + err.message);
-    scroll.style.maxHeight = originalMaxHeight;
-    scroll.classList.remove('export-mode');
-    hideLoading();
-  }
-}
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-}
-
-init();
-</script>
 </body>
 </html>
