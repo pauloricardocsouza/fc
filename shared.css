@@ -143,6 +143,7 @@ body {
   color: #fff;
   font-size: 12px;
   font-weight: 500;
+  position: relative;
 }
 .user-chip .avatar {
   width: 26px; height: 26px;
@@ -154,6 +155,9 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 .user-chip button {
   background: transparent;
@@ -166,6 +170,64 @@ body {
   transition: color 0.15s, background 0.15s;
 }
 .user-chip button:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+/* Dropdown do usuário (visível principalmente em mobile) */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  background: var(--brand-black);
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  padding: 14px;
+  z-index: 100;
+  animation: dropdownIn 0.15s ease-out;
+}
+.user-dropdown[hidden] { display: none; }
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.user-dropdown-info {
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #2a2f3a;
+}
+.user-dropdown-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+  word-break: break-word;
+}
+.user-dropdown-email {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #9aa3b2;
+  word-break: break-all;
+}
+.user-dropdown-logout {
+  width: 100%;
+  background: rgba(217,45,32,0.15) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(217,45,32,0.3) !important;
+  padding: 9px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.user-dropdown-logout:hover {
+  background: rgba(217,45,32,0.3) !important;
+  color: #fff !important;
+}
 
 .sync-badge {
   display: inline-flex;
@@ -556,17 +618,64 @@ footer .footer-version {
 
 /* ============ Responsividade global ============ */
 @media (max-width: 860px) {
-  .topbar { flex-wrap: wrap; padding: 12px 16px; }
-  .nav { display: none; width: 100%; flex-direction: column; gap: 4px; margin-top: 8px; order: 3; }
-  .nav.open { display: flex; }
+  /* Topbar em UMA linha só — força nowrap e compacta elementos */
+  .topbar {
+    flex-wrap: nowrap !important;
+    padding: 10px 14px;
+    gap: 8px;
+    min-height: 54px;
+  }
+
+  /* Logo compacto: esconder "Sistema Financeiro", manter nome */
+  .brand { gap: 10px; min-width: 0; flex-shrink: 1; overflow: hidden; }
+  .brand-mark { width: 32px; height: 32px; flex-shrink: 0; }
+  .brand-text { min-width: 0; overflow: hidden; }
+  .brand-text .name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand-text .sub { display: none !important; }
+
+  /* Menu: vira navegação dropdown abaixo do topbar */
+  .nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px;
+    background: var(--brand-black);
+    border-bottom: 1px solid #2a2f3a;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 49;
+  }
+  .nav.open { display: flex !important; }
   .nav a { width: 100%; padding: 10px 12px; }
-  .menu-toggle { display: inline-flex; }
-  .last-update { display: none; }
+
+  .menu-toggle { display: inline-flex !important; flex-shrink: 0; padding: 5px 8px; }
+  .last-update { display: none !important; }
   .page-head { padding: 20px 16px 14px; }
   .page-head h1 { font-size: 26px; }
-  .user-chip .name-hide-mobile { display: none; }
 
-  /* Sync badge: só a bolinha colorida no mobile */
+  /* User chip compacto: só avatar que abre dropdown, sem nome nem Sair inline */
+  .topbar-meta {
+    gap: 8px;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0;
+  }
+  .user-chip {
+    padding: 0 !important;
+    background: transparent !important;
+    gap: 0 !important;
+  }
+  /* Esconder completamente nome e botão Sair inline no mobile */
+  .user-chip .name-hide-mobile,
+  .user-chip > span,
+  .user-chip > #btn-logout {
+    display: none !important;
+  }
+  .user-chip .avatar { width: 30px; height: 30px; flex-shrink: 0; }
+
+  /* Sync badge: só a bolinha colorida */
   .sync-badge {
     padding: 0 !important;
     background: transparent !important;
@@ -578,6 +687,7 @@ footer .footer-version {
     border-radius: 50% !important;
     color: transparent !important;
     font-size: 0 !important;
+    flex-shrink: 0;
   }
   .sync-badge #sync-text,
   .sync-badge span:not(.sync-dot) { display: none !important; }
@@ -602,5 +712,4 @@ footer .footer-version {
   .modal .head { padding: 14px 16px; }
   .modal .head .title h3 { font-size: 15px; }
   footer { padding: 16px; font-size: 10px; }
-  .topbar-meta { width: 100%; order: 4; margin-top: 6px; }
 }

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="shared.css?v=2.9">
 <style>
   .period-selector {
     margin-top: 16px;
@@ -217,6 +217,17 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .top-list li .info .cat-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.1);
+    flex-shrink: 0;
   }
   .top-list li .info .meta {
     font-family: 'JetBrains Mono', monospace;
@@ -335,54 +346,6 @@
     font-weight: 600;
   }
   .weekday-col.weekend .day-label { color: var(--text-muted); opacity: 0.6; }
-
-  /* Line chart (evolução acumulada) */
-  .line-chart-wrap {
-    position: relative;
-    width: 100%;
-    height: 200px;
-  }
-  .line-chart-wrap svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-  .line-chart-wrap .axis-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    fill: var(--text-muted);
-  }
-  .line-chart-wrap .grid-line {
-    stroke: var(--border);
-    stroke-dasharray: 2 3;
-    stroke-width: 1;
-  }
-  .line-chart-wrap .zero-line {
-    stroke: var(--border-strong);
-    stroke-width: 1;
-  }
-  .line-chart-wrap .area-positive {
-    fill: rgba(28, 167, 236, 0.15);
-  }
-  .line-chart-wrap .area-negative {
-    fill: rgba(217, 45, 32, 0.12);
-  }
-  .line-chart-wrap .line {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 2;
-  }
-  .line-chart-wrap .line.negative {
-    stroke: var(--danger);
-  }
-  .line-chart-wrap .point {
-    fill: var(--accent);
-    stroke: #fff;
-    stroke-width: 1.5;
-  }
-  .line-chart-wrap .point.negative {
-    fill: var(--danger);
-  }
 
   /* Concentração */
   .concentration {
@@ -644,16 +607,16 @@
       </div>
     </div>
 
-    <!-- Evolução acumulada -->
+    <!-- Top Categorias -->
     <div class="panel span-8">
       <div class="head">
         <div>
-          <h3>Evolução do saldo acumulado</h3>
-          <div class="sub" id="line-chart-sub">—</div>
+          <h3>Top Categorias</h3>
+          <div class="sub">Distribuição das saídas por categoria no período</div>
         </div>
       </div>
       <div class="body">
-        <div class="line-chart-wrap" id="line-chart"></div>
+        <ul class="top-list" id="top-categorias"></ul>
       </div>
     </div>
 
@@ -752,7 +715,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
-<script src="shared.js"></script>
+<script src="shared.js?v=2.9"></script>
 
 <script>
 (function() {
@@ -763,6 +726,8 @@
   let dataStore = null;
   let provisions = [];
   let deletedImported = {};
+  let categorias = {};        // { catId: { nome, cor, nativa } }
+  let fornecedorMap = {};     // { normKey: { categoriaId, fornecedorNome } }
   let currentPreset = '7';
   let currentStart = null;
   let currentEnd = null;
@@ -781,6 +746,18 @@
 
     setupControls();
     applyPreset('7');
+
+    // Escutar categorias e atribuições do Firebase (atualiza Top Categorias automaticamente)
+    if (F.IS_FIREBASE_CONFIGURED && F.DB.dbReady()) {
+      F.DB.subscribeCategorias(data => {
+        categorias = data || {};
+        if (hasData()) render();
+      });
+      F.DB.subscribeFornecedorCategoria(data => {
+        fornecedorMap = data || {};
+        if (hasData()) render();
+      });
+    }
   }
 
   function loadData() {
@@ -926,6 +903,26 @@
       .map(([name, e]) => ({ name, total: e.total, count: e.count }))
       .sort((a, b) => b.total - a.total);
 
+    // Top categorias: agrega fornecedores pela categoria de cada um
+    const DEFAULT_CAT_ID = '__default__';
+    const DEFAULT_CAT_NAME = 'DEMAIS FORNECEDORES';
+    const catMap = new Map();
+    topFornecedores.forEach(f => {
+      const normKey = (F.normalizeKey ? F.normalizeKey(f.name) : f.name.toUpperCase());
+      const assoc = fornecedorMap[normKey];
+      const catId = (assoc && assoc.categoriaId) ? assoc.categoriaId : DEFAULT_CAT_ID;
+      const cat = categorias[catId];
+      const nome = cat?.nome || DEFAULT_CAT_NAME;
+      const cor = cat?.cor || '#9aa3b2';
+      if (!catMap.has(catId)) catMap.set(catId, { name: nome, cor, total: 0, count: 0, vendors: 0 });
+      const entry = catMap.get(catId);
+      entry.total += f.total;
+      entry.count += f.count;
+      entry.vendors += 1;
+    });
+    const topCategorias = [...catMap.values()]
+      .sort((a, b) => b.total - a.total);
+
     // Top clientes
     const cliMap = new Map();
     receber.forEach(t => {
@@ -942,7 +939,7 @@
       .map(([name, e]) => ({ name, total: e.total, count: e.count }))
       .sort((a, b) => b.total - a.total);
 
-    return { byDate, allDates, topFornecedores, topClientes };
+    return { byDate, allDates, topFornecedores, topClientes, topCategorias };
   }
 
   /* ========== Render principal ========== */
@@ -956,7 +953,7 @@
     renderMeta();
     renderKPIs(agg);
     renderDaysDistribution(agg);
-    renderLineChart(agg);
+    renderTopCategoriesList(agg.topCategorias);
     renderTopList('top-fornecedores', agg.topFornecedores, 'out');
     renderTopList('top-clientes', agg.topClientes, 'in');
     renderConcentration(agg.topFornecedores);
@@ -1038,77 +1035,39 @@
   }
 
   /* ========== Line chart SVG ========== */
-  function renderLineChart(agg) {
-    const container = document.getElementById('line-chart');
-    const dates = agg.allDates;
-    if (!dates.length) { container.innerHTML = ''; return; }
+  /* ========== Top Categorias ========== */
+  function renderTopCategoriesList(list) {
+    const el = document.getElementById('top-categorias');
+    if (!el) return;
 
-    let acc = 0;
-    const points = dates.map(k => {
-      acc += agg.byDate[k].net;
-      return { date: k, value: acc };
-    });
+    if (!list || !list.length) {
+      el.innerHTML = '<li style="padding:20px 0;color:var(--text-muted);font-size:12px;text-align:center;">Nenhum dado no período</li>';
+      return;
+    }
 
-    document.getElementById('line-chart-sub').textContent =
-      `Final: ${F.Fmt.fmtMoney(acc)} · ${points.length} pontos`;
+    const maxTotal = list[0]?.total || 1;
+    const totalAll = list.reduce((s, e) => s + e.total, 0);
 
-    const width = container.clientWidth || 600;
-    const height = 200;
-    const padL = 60, padR = 14, padT = 14, padB = 26;
-    const innerW = width - padL - padR;
-    const innerH = height - padT - padB;
-
-    const values = points.map(p => p.value);
-    let maxV = Math.max(...values, 0);
-    let minV = Math.min(...values, 0);
-    if (maxV === minV) { maxV += 1; minV -= 1; }
-    // Adicionar 10% de folga
-    const range = maxV - minV;
-    maxV += range * 0.05;
-    minV -= range * 0.05;
-
-    const xAt = i => padL + (points.length > 1 ? i * innerW / (points.length - 1) : innerW / 2);
-    const yAt = v => padT + (maxV - v) / (maxV - minV) * innerH;
-    const yZero = yAt(0);
-
-    // Gerar path
-    const pathParts = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xAt(i).toFixed(1)},${yAt(p.value).toFixed(1)}`);
-    const linePath = pathParts.join(' ');
-    const areaPath = linePath + ` L${xAt(points.length - 1).toFixed(1)},${yZero.toFixed(1)} L${xAt(0).toFixed(1)},${yZero.toFixed(1)} Z`;
-
-    // Labels eixo Y (3 níveis)
-    const yLabels = [maxV, (maxV + minV) / 2, minV].map(v => ({
-      y: yAt(v),
-      v: F.Fmt.fmtMoneyShort(v),
-    }));
-
-    // Labels eixo X (primeiro, meio, último)
-    const xLabelIndices = points.length <= 7
-      ? points.map((_, i) => i)
-      : [0, Math.floor(points.length / 2), points.length - 1];
-    const xLabels = xLabelIndices.map(i => ({
-      x: xAt(i),
-      label: F.Fmt.fmtHeaderDate(F.Dates.parseDateKey(points[i].date)),
-    }));
-
-    const pointsSvg = points.map((p, i) =>
-      `<circle class="point ${p.value < 0 ? 'negative' : ''}" cx="${xAt(i).toFixed(1)}" cy="${yAt(p.value).toFixed(1)}" r="3"/>`
-    ).join('');
-
-    const finalClass = acc < 0 ? 'negative' : '';
-    const finalAreaClass = acc < 0 ? 'area-negative' : 'area-positive';
-
-    container.innerHTML = `
-      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-        ${yLabels.map(l => `<line class="grid-line" x1="${padL}" y1="${l.y.toFixed(1)}" x2="${width - padR}" y2="${l.y.toFixed(1)}"/>`).join('')}
-        ${yZero >= padT && yZero <= padT + innerH ? `<line class="zero-line" x1="${padL}" y1="${yZero.toFixed(1)}" x2="${width - padR}" y2="${yZero.toFixed(1)}"/>` : ''}
-        <path class="${finalAreaClass}" d="${areaPath}"/>
-        <path class="line ${finalClass}" d="${linePath}"/>
-        ${pointsSvg}
-        ${yLabels.map(l => `<text class="axis-label" x="${padL - 6}" y="${(l.y + 3).toFixed(1)}" text-anchor="end">${l.v}</text>`).join('')}
-        ${xLabels.map(l => `<text class="axis-label" x="${l.x.toFixed(1)}" y="${height - 8}" text-anchor="middle">${l.label}</text>`).join('')}
-      </svg>
-    `;
+    el.innerHTML = list.map((e, i) => {
+      const rankCls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+      const pct = totalAll > 0 ? (e.total / totalAll * 100).toFixed(1) : 0;
+      const barW = (e.total / maxTotal * 100).toFixed(1);
+      const cor = e.cor || '#9aa3b2';
+      return `
+        <li class="out">
+          <div class="rank ${rankCls}">${i + 1}</div>
+          <div class="info">
+            <div class="name" title="${F.escapeHTML(e.name)}">
+              <span class="cat-swatch" style="background:${F.escapeHTML(cor)};"></span>
+              ${F.escapeHTML(e.name)}
+            </div>
+            <div class="meta">${e.vendors} fornecedor${e.vendors !== 1 ? 'es' : ''} · ${e.count} título${e.count !== 1 ? 's' : ''} · ${pct}% do total</div>
+            <div class="bar"><div class="bar-fill" style="width:${barW}%; background:${F.escapeHTML(cor)};"></div></div>
+          </div>
+          <div class="value">${F.Fmt.fmtMoney(e.total)}</div>
+        </li>
+      `;
+    }).join('');
   }
 
   /* ========== Top list ========== */
