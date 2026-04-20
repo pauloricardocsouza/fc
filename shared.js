@@ -1,5 +1,5 @@
 /* =======================================================================
-   FILADÉLFIA — Sistema Financeiro
+   FILADELFIA — Sistema Financeiro
    Módulo JS compartilhado
 
    Conteúdo:
@@ -14,6 +14,14 @@
 
 (function () {
   'use strict';
+
+  /* ========== Versão do sistema ==========
+     Atualizar a cada nova entrega.
+     Formato: v<major>.<minor>
+     - major: mudanças estruturais profundas
+     - minor: correções e melhorias pontuais
+     ======================================= */
+  const APP_VERSION = 'v2.1';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -351,7 +359,7 @@
 
   /* ========== Topbar construction ========== */
   const BRAND_SVG = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Filadélfia">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Filadelfia">
       <path d="M 55 58 L 172 58 Q 185 58 185 71 L 185 88 Q 185 101 172 101 L 118 101 L 118 128 Q 118 140 105 140 L 92 140 Q 79 140 79 128 L 79 71 Q 79 58 92 58 Z" fill="#ffffff"/>
       <path d="M 82 115 L 199 115 Q 212 115 212 128 L 212 145 Q 212 158 199 158 L 145 158 L 145 185 Q 145 197 132 197 L 119 197 Q 106 197 106 185 L 106 128 Q 106 115 119 115 Z" fill="#1CA7EC"/>
     </svg>
@@ -373,7 +381,7 @@
       <a class="brand" href="index.html">
         <div class="brand-mark">${BRAND_SVG}</div>
         <div class="brand-text">
-          <span class="name">Filadélfia</span>
+          <span class="name">Filadelfia</span>
           <span class="sub">Sistema Financeiro</span>
         </div>
       </a>
@@ -423,6 +431,22 @@
     badge.className = 'sync-badge ' + status;
     const t = document.getElementById('sync-text');
     if (t) t.textContent = text;
+  }
+
+  /* ========== Footer ========== */
+  // Atualiza o rodapé da página adicionando a versão do sistema.
+  // Se não houver <footer> no DOM, cria um.
+  function renderFooter() {
+    let footer = document.querySelector('footer');
+    if (!footer) {
+      footer = document.createElement('footer');
+      document.body.appendChild(footer);
+    }
+    const copyText = 'FILADELFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS';
+    footer.innerHTML = `
+      <span class="footer-text">${copyText}</span>
+      <span class="footer-version" title="Versão do sistema">${APP_VERSION}</span>
+    `;
   }
 
   /* ========== Toast ========== */
@@ -654,6 +678,7 @@
 
   /* ========== Export público ========== */
   window.Filadelfia = {
+    APP_VERSION,
     KEYS,
     IS_FIREBASE_CONFIGURED,
     state,
@@ -682,7 +707,15 @@
       setFornecedorCategoria, subscribeFornecedorCategoria,
       subscribeAllComments, deleteComment, restoreComment, purgeComment,
     },
-    UI: { renderTopbar, updateSyncBadge, showToast, hideToast, showLoading, hideLoading },
+    UI: { renderTopbar, renderFooter, updateSyncBadge, showToast, hideToast, showLoading, hideLoading },
     Config: { firebaseConfig },
   };
+
+  /* ========== Auto-render do rodapé ========== */
+  // Toda página que carrega shared.js ganha o rodapé com versão automaticamente.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderFooter);
+  } else {
+    renderFooter();
+  }
 })();

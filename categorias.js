@@ -1,5 +1,5 @@
 /* =======================================================================
-   FILADÉLFIA — Página de Categorias (Entrega 2)
+   FILADELFIA — Página de Categorias (Entrega 2)
 
    Permite:
    - Criar, editar, excluir categorias (exceto a nativa "DEMAIS FORNECEDORES")

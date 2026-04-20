@@ -1,5 +1,5 @@
 /* =======================================================================
-   FILADÉLFIA — Página de Lançamentos (Entrega 3)
+   FILADELFIA — Página de Lançamentos (Entrega 3)
 
    Mostra:
    - Lançamentos manuais (tab principal)

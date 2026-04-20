@@ -1,5 +1,5 @@
 /* =======================================================================
-   FILADÉLFIA — Fluxo de Caixa (JS) v2
+   FILADELFIA — Fluxo de Caixa (JS) v2
 
    Mudanças nesta versão:
    - Lançamentos manuais, lixeira e títulos ocultados agora sincronizam via Firebase
@@ -1077,7 +1077,7 @@
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text('FILADÉLFIA · Detalhamento', 10, 10);
+        doc.text('FILADELFIA · Detalhamento', 10, 10);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.text(title, 10, 16);
@@ -1466,7 +1466,7 @@
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text('FILADÉLFIA · Fluxo de Caixa', margin, 9);
+        doc.text('FILADELFIA · Fluxo de Caixa', margin, 9);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         const pageInfoText = dateChunks.length > 1 ? `Parte ${chunkIdx + 1}/${dateChunks.length} · ` : '';

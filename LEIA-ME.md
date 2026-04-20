@@ -1,6 +1,6 @@
-# Filadélfia — Sistema Financeiro
+# Filadelfia — Sistema Financeiro
 
-Sistema web de fluxo de caixa, dashboard e processamento de relatórios para Filadélfia, desenvolvido por R2 Soluções Empresariais.
+Sistema web de fluxo de caixa, dashboard e processamento de relatórios para Filadelfia, desenvolvido por R2 Soluções Empresariais.
 
 ## Estrutura de arquivos
 
@@ -22,7 +22,7 @@ Sistema web de fluxo de caixa, dashboard e processamento de relatórios para Fil
 ├── categorias.js           # Lógica da página de categorias
 │
 └── assets/
-    └── logo.svg            # Logo Filadélfia (interlocking F's)
+    └── logo.svg            # Logo Filadelfia (interlocking F's)
 ```
 
 ## Configuração do Firebase
@@ -111,7 +111,7 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
 
 1. No console Firebase, ícone de engrenagem (⚙️) → **Configurações do projeto**
 2. Role até **Seus aplicativos** → ícone de Web (</>)
-3. Apelido: `Filadélfia Web`
+3. Apelido: `Filadelfia Web`
 4. Copie o objeto `firebaseConfig` que aparece
 
 ### 6. Substituir credenciais no sistema

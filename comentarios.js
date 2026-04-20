@@ -1,5 +1,5 @@
 /* =======================================================================
-   FILADÉLFIA — Página de Comentários (Entrega 3)
+   FILADELFIA — Página de Comentários (Entrega 3)
 
    Feed centralizado de todos os comentários.
    - Tab "Ativos": comentários vigentes
