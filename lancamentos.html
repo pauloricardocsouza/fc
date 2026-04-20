@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lançamentos — Filadelfia</title>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=3.3">
+<link rel="stylesheet" href="shared.css?v=3.6">
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -369,6 +369,26 @@
     .filter-group { min-width: 0; flex: 1 0 45%; }
     table.data thead th, table.data tbody td { padding: 8px 10px; font-size: 12px; }
   }
+  @media (max-width: 560px) {
+    .filters-row {
+      gap: 10px;
+    }
+    .filter-group {
+      flex: 1 1 calc(50% - 5px);
+      min-width: 0;
+    }
+    .filter-group input,
+    .filter-group select {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    /* Botão limpar filtros vai para largura total em uma linha própria */
+    .btn-reset-filter {
+      flex: 1 1 100%;
+      width: 100%;
+      margin-top: 4px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -488,8 +508,8 @@
   DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS
 </footer>
 
-<script src="shared.js?v=3.3"></script>
-<script src="lancamentos.js?v=3.3"></script>
+<script src="shared.js?v=3.6"></script>
+<script src="lancamentos.js?v=3.6"></script>
 
 </body>
 </html>
