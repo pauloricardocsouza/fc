@@ -383,6 +383,8 @@
       <nav class="nav" id="nav">
         <a href="index.html" ${activePage === 'fluxo' ? 'class="active"' : ''}>Fluxo de Caixa</a>
         <a href="dashboard.html" ${activePage === 'dashboard' ? 'class="active"' : ''}>Dashboard</a>
+        <a href="lancamentos.html" ${activePage === 'lancamentos' ? 'class="active"' : ''}>Lançamentos</a>
+        <a href="comentarios.html" ${activePage === 'comentarios' ? 'class="active"' : ''}>Comentários</a>
         <a href="categorias.html" ${activePage === 'categorias' ? 'class="active"' : ''}>Categorias</a>
         <a href="processamento.html" ${activePage === 'processamento' ? 'class="active"' : ''}>Processamento</a>
       </nav>
@@ -616,6 +618,40 @@
     return () => ref.off('value', handler);
   }
 
+  // Comentários (todos)
+  function subscribeAllComments(callback) {
+    if (!state.fbDB) { callback({}); return () => {}; }
+    const ref = dbRef('comentarios');
+    const handler = snap => callback(snap.val() || {});
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+  // Soft-delete: marca como excluído mas mantém os dados para eventual restauração
+  async function deleteComment(cellKey, commentId) {
+    await dbRef(`comentarios/${cellKey}/${commentId}`).update({
+      deleted: true,
+      deletedBy: state.user?.uid || null,
+      deletedByName: state.user?.displayName || state.user?.email || 'Anônimo',
+      deletedAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+  }
+  // Restaura comentário soft-deleted (qualquer autenticado pode restaurar)
+  async function restoreComment(cellKey, commentId) {
+    await dbRef(`comentarios/${cellKey}/${commentId}`).update({
+      deleted: null,
+      deletedBy: null,
+      deletedByName: null,
+      deletedAt: null,
+      restoredBy: state.user?.uid || null,
+      restoredByName: state.user?.displayName || state.user?.email || 'Anônimo',
+      restoredAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+  }
+  // Exclusão permanente (só para uso em lixeira, se o usuário quiser apagar definitivamente)
+  async function purgeComment(cellKey, commentId) {
+    await dbRef(`comentarios/${cellKey}/${commentId}`).remove();
+  }
+
   /* ========== Export público ========== */
   window.Filadelfia = {
     KEYS,
@@ -644,6 +680,7 @@
       hideTitle, restoreTitle, subscribeHiddenTitles,
       createCategoria, updateCategoria, deleteCategoria, subscribeCategorias, ensureDefaultCategory, DEFAULT_CATEGORY_NAME,
       setFornecedorCategoria, subscribeFornecedorCategoria,
+      subscribeAllComments, deleteComment, restoreComment, purgeComment,
     },
     UI: { renderTopbar, updateSyncBadge, showToast, hideToast, showLoading, hideLoading },
     Config: { firebaseConfig },

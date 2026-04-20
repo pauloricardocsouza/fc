@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lançamentos — Filadélfia</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<style>
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-head {
+    padding: 22px 28px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .page-head h1 {
+    margin: 0 0 3px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .page-head .sub {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .tabs-row {
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    gap: 4px;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 18px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  .tab-btn .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    padding: 1px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+  .tab-btn.active .count {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .filters-row {
+    padding: 14px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+  }
+  .filter-group label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .filter-group input, .filter-group select {
+    padding: 7px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .filter-group input:focus, .filter-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .btn-reset-filter {
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .btn-reset-filter:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .content {
+    flex: 1;
+    padding: 18px 28px 30px;
+    min-height: 0;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  table.data {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.data thead th {
+    background: var(--surface-2);
+    padding: 10px 14px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  table.data thead th.right { text-align: right; }
+  table.data thead th.center { text-align: center; }
+  table.data thead th.sortable { cursor: pointer; user-select: none; }
+  table.data thead th.sortable:hover { background: var(--surface-3); }
+  table.data tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+  table.data tbody tr:hover td {
+    background: var(--surface-2);
+  }
+  table.data tbody td.right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  table.data tbody td.center { text-align: center; }
+  table.data tbody td.meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  table.data tbody td .entity-nm {
+    font-weight: 600;
+    color: var(--text);
+  }
+  table.data tbody td .note {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    max-width: 380px;
+    white-space: normal;
+  }
+  .type-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .type-badge.pagar {
+    background: var(--danger-bg-strong);
+    color: var(--danger-text);
+  }
+  .type-badge.receber {
+    background: var(--accent-bg-strong);
+    color: var(--accent-text);
+  }
+  .actions-cell { display: flex; gap: 6px; justify-content: flex-end; }
+  .action-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 5px 8px;
+    cursor: pointer;
+    color: var(--text-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .action-btn:hover {
+    background: var(--brand-black);
+    color: #fff;
+    border-color: var(--brand-black);
+  }
+  .action-btn.danger:hover {
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+  .action-btn.success:hover {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .empty-state-inline {
+    padding: 50px 20px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .empty-state-inline svg {
+    width: 36px;
+    height: 36px;
+    opacity: 0.5;
+    margin-bottom: 10px;
+  }
+
+  /* Modal de edição */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 14, 22, 0.75);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 10px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal .head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal .head h3 {
+    margin: 0;
+    font-family: 'Archivo', sans-serif;
+    font-size: 16px;
+  }
+  .modal .body { padding: 18px 20px; overflow-y: auto; }
+  .modal .foot {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    background: var(--surface-2);
+  }
+  .close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+    font-weight: 700;
+  }
+  .form-group input, .form-group textarea, .form-group select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .form-group input[type="text"] { text-transform: uppercase; }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  footer {
+    padding: 14px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 780px) {
+    .page-head, .tabs-row, .filters-row, .content { padding-left: 16px; padding-right: 16px; }
+    .filter-group { min-width: 0; flex: 1 0 45%; }
+    table.data thead th, table.data tbody td { padding: 8px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar"></header>
+
+<div class="page-head">
+  <div>
+    <h1>Lançamentos</h1>
+    <p class="sub">Todos os lançamentos manuais e títulos importados ocultados. Você pode editar e excluir apenas os que você criou.</p>
+  </div>
+  <a class="btn" href="index.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    Voltar ao fluxo
+  </a>
+</div>
+
+<div class="tabs-row">
+  <button class="tab-btn active" data-tab="manuais">
+    Lançamentos manuais
+    <span class="count" id="count-manuais">0</span>
+  </button>
+  <button class="tab-btn" data-tab="ocultados">
+    Títulos ocultados
+    <span class="count" id="count-ocultados">0</span>
+  </button>
+  <button class="tab-btn" data-tab="meus">
+    Meus lançamentos
+    <span class="count" id="count-meus">0</span>
+  </button>
+</div>
+
+<div class="filters-row" id="filters-row">
+  <div class="filter-group">
+    <label>Tipo</label>
+    <select id="filter-tipo">
+      <option value="">Todos</option>
+      <option value="pagar">A pagar</option>
+      <option value="receber">A receber</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Autor</label>
+    <select id="filter-autor">
+      <option value="">Todos</option>
+    </select>
+  </div>
+  <div class="filter-group" style="flex:1;min-width:200px;">
+    <label>Busca (fornecedor, nota, documento)</label>
+    <input type="text" id="filter-busca" placeholder="Buscar...">
+  </div>
+  <div class="filter-group">
+    <label>Vencimento de</label>
+    <input type="date" id="filter-data-de">
+  </div>
+  <div class="filter-group">
+    <label>Vencimento até</label>
+    <input type="date" id="filter-data-ate">
+  </div>
+  <button class="btn-reset-filter" id="btn-reset-filters">Limpar filtros</button>
+</div>
+
+<div class="content">
+  <div class="card">
+    <div id="table-wrap"></div>
+  </div>
+</div>
+
+<!-- Modal de edição -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="head">
+      <h3>Editar lançamento</h3>
+      <button class="close-btn" data-close="edit" aria-label="Fechar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="body">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="edit-tipo">
+          <option value="pagar">Contas a pagar</option>
+          <option value="receber">Contas a receber</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label id="edit-entity-label">Fornecedor</label>
+        <input type="text" id="edit-entity" maxlength="120">
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Vencimento</label>
+          <input type="date" id="edit-date">
+        </div>
+        <div class="form-group">
+          <label>Valor (R$)</label>
+          <input type="number" id="edit-value" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Documento (opcional)</label>
+        <input type="text" id="edit-doc" maxlength="40" style="text-transform:none;">
+      </div>
+      <div class="form-group">
+        <label>Observação (opcional)</label>
+        <textarea id="edit-note" rows="3" maxlength="500" style="text-transform:none;"></textarea>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn btn-ghost" data-close="edit">Cancelar</button>
+      <button class="btn" id="btn-save-edit">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  FILADÉLFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS
+</footer>
+
+<script src="shared.js"></script>
+<script src="lancamentos.js"></script>
+
+</body>
+</html>

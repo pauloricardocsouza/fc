@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comentários — Filadélfia</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<style>
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-head {
+    padding: 22px 28px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .page-head h1 {
+    margin: 0 0 3px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .page-head .sub {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .filters-row {
+    padding: 14px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+  }
+  .filter-group label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .filter-group input, .filter-group select {
+    padding: 7px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .filter-group input:focus, .filter-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .btn-reset-filter {
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .btn-reset-filter:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .content {
+    flex: 1;
+    padding: 18px 28px 30px;
+  }
+
+  .feed {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .comment-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    transition: border-color 0.15s;
+  }
+  .comment-card:hover {
+    border-color: var(--border-strong);
+  }
+  .comment-card.deleted {
+    background: var(--surface-2);
+    border-color: var(--border);
+    opacity: 0.85;
+  }
+  .comment-card.deleted .comment-text {
+    color: var(--text-dim);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--text-muted);
+  }
+
+  .deleted-info {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .deleted-info strong {
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+
+  /* Tabs */
+  .tabs-row {
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    gap: 4px;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 18px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  .tab-btn .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    padding: 1px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+  .tab-btn.active .count {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* Botão restaurar (verde) */
+  .comment-actions button.restore-btn {
+    background: transparent;
+    border: 1px solid var(--success, #0a6e9e);
+    color: var(--success, #0a6e9e);
+  }
+  .comment-actions button.restore-btn:hover {
+    background: var(--success, #0a6e9e);
+    color: #fff;
+    border-color: var(--success, #0a6e9e);
+  }
+
+  .comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .comment-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .comment-author {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .comment-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .comment-target {
+    margin-top: 6px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .target-chip {
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .target-chip.pagar { background: var(--danger-bg-strong); color: var(--danger-text); }
+  .target-chip.receber { background: var(--accent-bg-strong); color: var(--accent-text); }
+  .target-chip.vendor {
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+  }
+  .comment-text {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .comment-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .comment-actions button {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .comment-actions button:hover {
+    background: var(--brand-black);
+    color: #fff;
+    border-color: var(--brand-black);
+  }
+  .comment-actions button.danger:hover {
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+
+  .empty-state-inline {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .empty-state-inline svg {
+    width: 36px;
+    height: 36px;
+    opacity: 0.5;
+    margin-bottom: 10px;
+  }
+
+  footer {
+    padding: 14px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 780px) {
+    .page-head, .filters-row, .content { padding-left: 16px; padding-right: 16px; }
+    .filter-group { min-width: 0; flex: 1 0 45%; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar"></header>
+
+<div class="page-head">
+  <div>
+    <h1>Comentários</h1>
+    <p class="sub">Todos os comentários feitos em células do fluxo de caixa. Clique em um comentário para ir à célula correspondente.</p>
+  </div>
+  <a class="btn" href="index.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    Voltar ao fluxo
+  </a>
+</div>
+
+<div class="tabs-row">
+  <button class="tab-btn active" data-tab="ativos">
+    Ativos
+    <span class="count" id="count-ativos">0</span>
+  </button>
+  <button class="tab-btn" data-tab="excluidos">
+    Excluídos
+    <span class="count" id="count-excluidos">0</span>
+  </button>
+</div>
+
+<div class="filters-row">
+  <div class="filter-group">
+    <label>Tipo</label>
+    <select id="filter-tipo">
+      <option value="">Todos</option>
+      <option value="pagar">A pagar</option>
+      <option value="receber">A receber</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Autor</label>
+    <select id="filter-autor">
+      <option value="">Todos</option>
+    </select>
+  </div>
+  <div class="filter-group" style="flex:1;min-width:200px;">
+    <label>Busca (texto, fornecedor)</label>
+    <input type="text" id="filter-busca" placeholder="Buscar...">
+  </div>
+  <div class="filter-group">
+    <label>Data de</label>
+    <input type="date" id="filter-data-de">
+  </div>
+  <div class="filter-group">
+    <label>Data até</label>
+    <input type="date" id="filter-data-ate">
+  </div>
+  <button class="btn-reset-filter" id="btn-reset-filters">Limpar filtros</button>
+</div>
+
+<div class="content">
+  <div id="feed" class="feed"></div>
+</div>
+
+<footer>
+  FILADÉLFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS
+</footer>
+
+<script src="shared.js"></script>
+<script src="comentarios.js"></script>
+
+</body>
+</html>

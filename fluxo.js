@@ -192,7 +192,13 @@
     return `pagar__${safe(vendor)}__${dateK}`;
   }
   function getCommentsForCell(kind, dateK, vendor) {
-    return commentsCache[commentKeyFor(kind, dateK, vendor)] || {};
+    const all = commentsCache[commentKeyFor(kind, dateK, vendor)] || {};
+    // Filtra os soft-deleted
+    const filtered = {};
+    Object.entries(all).forEach(([id, c]) => {
+      if (c && !c.deleted) filtered[id] = c;
+    });
+    return filtered;
   }
   function hasCommentsForCell(kind, dateK, vendor) {
     return Object.keys(getCommentsForCell(kind, dateK, vendor)).length > 0;
@@ -228,6 +234,51 @@
     setupControls();
     updateHeaderInfo();
     render();
+
+    // Se veio da página de comentários com query params, abre o detalhe
+    checkUrlParams();
+  }
+
+  function checkUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    const detail = params.get('detail');
+    const date = params.get('date');
+    const vendor = params.get('vendor');
+    if (!detail || !date) return;
+
+    // Ajusta filtro para garantir que a data está visível
+    if (!processed.allDates.includes(date)) {
+      F.UI.showToast('A data do comentário está fora do período importado', 'error');
+      return;
+    }
+    const startInput = document.getElementById('filter-start');
+    const endInput = document.getElementById('filter-end');
+    if (date < startInput.value) startInput.value = date;
+    if (date > endInput.value) endInput.value = date;
+    render();
+
+    // Abre o detalhe
+    setTimeout(() => {
+      try {
+        const vendorUpper = vendor ? vendor.toUpperCase() : null;
+        if (detail === 'pagar' && vendorUpper) {
+          // Verifica se o fornecedor existe com esse nome normalizado
+          const exists = processed.vendors.some(v => v.name === vendorUpper || v.name.replace(/_/g, ' ') === vendorUpper);
+          if (exists) {
+            const realName = processed.vendors.find(v => v.name === vendorUpper || v.name.replace(/_/g, ' ') === vendorUpper)?.name;
+            openDetail('pagar', date, realName);
+          } else {
+            F.UI.showToast('Fornecedor não encontrado no período atual', 'error');
+          }
+        } else if (detail === 'receber') {
+          openDetail('receber', date, null);
+        }
+        // Limpa os query params da URL (sem recarregar)
+        history.replaceState({}, document.title, window.location.pathname);
+      } catch (e) {
+        console.warn('Erro ao abrir detalhe:', e);
+      }
+    }, 200);
   }
 
   function showEmpty() {

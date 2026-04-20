@@ -7,6 +7,8 @@ Sistema web de fluxo de caixa, dashboard e processamento de relatórios para Fil
 ```
 ├── index.html              # Fluxo de Caixa (página principal)
 ├── dashboard.html          # Dashboard com indicadores
+├── lancamentos.html        # Lista de lançamentos manuais e títulos ocultados
+├── comentarios.html        # Feed centralizado de comentários
 ├── categorias.html         # Gerenciamento de categorias de fornecedores
 ├── processamento.html      # Upload de relatórios SIA
 ├── login.html              # Tela de login
@@ -15,6 +17,8 @@ Sistema web de fluxo de caixa, dashboard e processamento de relatórios para Fil
 ├── fluxo.css               # Estilos da grade de fluxo
 ├── shared.js               # Firebase + Auth + utilitários
 ├── fluxo.js                # Lógica do fluxo de caixa
+├── lancamentos.js          # Lógica da página de lançamentos
+├── comentarios.js          # Lógica do feed de comentários
 ├── categorias.js           # Lógica da página de categorias
 │
 └── assets/
@@ -57,15 +61,15 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
         ".read": "auth != null",
         "$cellKey": {
           "$commentId": {
-            ".write": "auth != null && (!data.exists() || data.child('authorUid').val() === auth.uid)",
-            ".validate": "newData.hasChildren(['author', 'authorUid', 'text', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 1000 && newData.child('authorUid').val() === auth.uid"
+            ".write": "auth != null && ((data.exists() == false && newData.child('authorUid').val() === auth.uid) || (newData.exists() == false && data.child('authorUid').val() === auth.uid) || (data.exists() && newData.exists() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('text').val() === data.child('text').val() && newData.child('createdAt').val() === data.child('createdAt').val()))",
+            ".validate": "newData.hasChildren(['author', 'authorUid', 'text', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 1000"
           }
         }
       },
       "lancamentos": {
         ".read": "auth != null",
         "$lancId": {
-          ".write": "auth != null && (!data.exists() || data.child('authorUid').val() === auth.uid)",
+          ".write": "auth != null && (data.exists() == false || data.child('authorUid').val() === auth.uid)",
           ".validate": "newData.hasChildren(['tipo', 'entidade', 'vencimento', 'valor', 'authorUid']) && newData.child('authorUid').val() === auth.uid && newData.child('valor').isNumber() && newData.child('valor').val() > 0 && newData.child('entidade').isString() && newData.child('entidade').val().length <= 120"
         }
       },
@@ -78,7 +82,7 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
       "categorias": {
         ".read": "auth != null",
         "$categoriaId": {
-          ".write": "auth != null && (!data.exists() || !data.child('nativa').val() || newData.child('nativa').val() === data.child('nativa').val())",
+          ".write": "auth != null && (data.exists() == false || data.child('nativa').val() != true || newData.child('nativa').val() === data.child('nativa').val())",
           ".validate": "newData.hasChild('nome') && newData.child('nome').isString() && newData.child('nome').val().length >= 2 && newData.child('nome').val().length <= 60"
         }
       },
@@ -95,7 +99,7 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
 
 **O que essas regras fazem:**
 
-- **Comentários:** qualquer autenticado lê; só o autor edita/exclui o próprio. Texto limitado a 1000 caracteres.
+- **Comentários:** qualquer autenticado lê; o autor pode criar, editar (mudar texto) e excluir permanentemente o próprio; qualquer autenticado pode marcar como excluído (soft-delete) ou restaurar, desde que não altere texto, autor ou data de criação. Texto limitado a 1000 caracteres.
 - **Lançamentos manuais:** qualquer autenticado lê; só o autor edita/exclui o próprio. Valor precisa ser positivo, nome do fornecedor/cliente até 120 caracteres.
 - **Deletados (títulos importados ocultados):** qualquer autenticado lê e edita — a operação é compartilhada entre a equipe.
 - **Categorias:** qualquer autenticado cria, edita ou exclui. Categorias nativas (como "DEMAIS FORNECEDORES") não podem ser desnaturalizadas. Nome entre 2 e 60 caracteres.
@@ -225,6 +229,37 @@ A partir da v2, fornecedores podem ser agrupados em categorias (ex.: Bancos, Imp
    - Direita: fornecedores disponíveis (não atribuídos ou em outras categorias)
 5. Selecione fornecedores e use os botões **Atribuir** ou **Devolver**
 6. No fluxo de caixa, clique em "Contas a Pagar (Total)" para expandir e ver os agrupamentos
+
+### Página de Lançamentos (v2)
+
+A página **Lançamentos** centraliza todos os lançamentos manuais e títulos ocultados da empresa. Tem três abas:
+
+1. **Lançamentos manuais** — todos os lançamentos criados por qualquer usuário
+2. **Títulos ocultados** — títulos importados que foram escondidos; podem ser restaurados por qualquer usuário
+3. **Meus lançamentos** — filtro rápido só para os lançamentos que você criou
+
+**Filtros disponíveis:** tipo (pagar/receber), autor, texto livre (fornecedor, nota, documento), período de vencimento.
+
+**Regras de edição:**
+
+- Qualquer usuário vê todos os lançamentos
+- **Apenas o autor** pode editar ou excluir os próprios lançamentos
+- Qualquer usuário pode restaurar títulos ocultados
+
+### Página de Comentários (v2)
+
+A página **Comentários** é um feed cronológico de todos os comentários feitos em células do fluxo, com filtros e duas abas: **Ativos** e **Excluídos**.
+
+**Uso típico:**
+
+1. Acesse a página **Comentários** no menu
+2. Use os filtros para encontrar o que procura (ex.: comentários do Ricardo na última semana)
+3. Clique em **"Ir à célula"** no card do comentário para navegar direto ao fluxo com a célula aberta
+4. **Excluir** move o comentário para a aba "Excluídos" (soft-delete)
+5. Na aba **Excluídos**, qualquer usuário pode clicar em **"Restaurar"** para trazer o comentário de volta
+6. **Excluir permanentemente** só aparece para o autor original e apaga definitivamente do banco de dados
+
+**Nota importante:** soft-delete significa que comentários excluídos continuam no Firebase até que alguém os apague permanentemente. Isso permite corrigir exclusões acidentais e manter um histórico de quem apagou o quê.
 
 ### Dashboard — Indicadores disponíveis
 
