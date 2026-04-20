@@ -29,6 +29,13 @@
   let detailSortState = { col: null, dir: 'asc' };
   let detailCurrentRows = [];
 
+  // v2 — categorias e hierarquia
+  let categorias = {};           // { catId: { nome, cor, nativa, ... } }
+  let fornecedorMap = {};        // { normKey: { categoriaId, fornecedorNome } }
+  let expandedCategories = new Set(); // categoria expandida
+  let expandedReceber = false;   // total a receber expandido (só com manuais)
+  let expandedPagarTotal = false; // total a pagar expandido em categorias
+
   /* ========== Carga ========== */
   function loadLocalData() {
     dataStore = F.Storage.safeGetJSON(F.KEYS.DATA, null);
@@ -49,6 +56,19 @@
       deletedImported = data || {};
       if (processed) rebuildAndRender();
     }));
+
+    // v2 — categorias e atribuições
+    unsubscribes.push(F.DB.subscribeCategorias(data => {
+      categorias = data || {};
+      if (processed) render();
+    }));
+    unsubscribes.push(F.DB.subscribeFornecedorCategoria(data => {
+      fornecedorMap = data || {};
+      if (processed) render();
+    }));
+
+    // Garante que a categoria nativa existe
+    F.DB.ensureDefaultCategory().catch(err => console.warn('Categoria padrão:', err));
 
     F.state.fbDB.ref('filadelfia/comentarios').on('value', snap => {
       commentsCache = snap.val() || {};
@@ -375,10 +395,94 @@
     render();
   }
 
+  /* ========== Agrupamento por categoria ==========
+     Retorna:
+       [
+         { id: catId, nome, cor, nativa, fornecedores: [{name,byDate,total,hasManual,hasReal}], total, byDate }
+       ]
+     Categorias vazias são omitidas.
+     Nativa sempre presente como fallback (acomoda não-atribuídos).
+     ================================================ */
+  function groupVendorsByCategory(vendors) {
+    const nativeEntry = Object.entries(categorias).find(([, c]) => c?.nativa);
+    const nativeId = nativeEntry?.[0];
+
+    // Map: nomeFornecedor UPPERCASE -> categoriaId
+    const vendorCatIndex = {};
+    Object.values(fornecedorMap).forEach(fc => {
+      const nm = String(fc.fornecedorNome || '').toUpperCase();
+      if (nm) vendorCatIndex[nm] = fc.categoriaId;
+    });
+
+    // Inicializa grupos para TODAS as categorias existentes
+    const groups = {};
+    Object.entries(categorias).forEach(([cid, cat]) => {
+      groups[cid] = {
+        id: cid,
+        nome: cat.nome || '',
+        cor: cat.cor || '#6b7280',
+        nativa: !!cat.nativa,
+        fornecedores: [],
+        total: 0,
+        byDate: new Map(),
+      };
+    });
+
+    vendors.forEach(v => {
+      let cid = vendorCatIndex[v.name];
+      if (!cid || !groups[cid]) cid = nativeId; // fallback para nativa
+      if (!cid) {
+        // Sem categoria nativa ainda: cria temporária
+        groups['__none__'] = groups['__none__'] || {
+          id: '__none__',
+          nome: 'DEMAIS FORNECEDORES',
+          cor: '#6b7280',
+          nativa: true,
+          fornecedores: [],
+          total: 0,
+          byDate: new Map(),
+        };
+        cid = '__none__';
+      }
+      const g = groups[cid];
+      g.fornecedores.push(v);
+      g.total += v.total;
+      v.byDate.forEach((bucket, k) => {
+        if (!g.byDate.has(k)) g.byDate.set(k, { total: 0 });
+        g.byDate.get(k).total += bucket.total;
+      });
+    });
+
+    // Retorna apenas categorias com fornecedores
+    return Object.values(groups).filter(g => g.fornecedores.length > 0);
+  }
+
+  function sortCategoryGroups(groups, sState) {
+    const sorted = [...groups];
+    // Nativa sempre no final para manter o jeito tradicional
+    sorted.sort((a, b) => {
+      if (a.nativa && !b.nativa) return 1;
+      if (!a.nativa && b.nativa) return -1;
+      if (sState.col === 'name') {
+        const cmp = a.nome.localeCompare(b.nome, 'pt-BR');
+        return sState.dir === 'asc' ? cmp : -cmp;
+      }
+      if (sState.col === 'total') {
+        return sState.dir === 'asc' ? a.total - b.total : b.total - a.total;
+      }
+      // Ordena por coluna de data específica
+      const va = a.byDate.get(sState.col)?.total || 0;
+      const vb = b.byDate.get(sState.col)?.total || 0;
+      return sState.dir === 'asc' ? va - vb : vb - va;
+    });
+    return sorted;
+  }
+
   function renderGrid(activeVendors, totalsByDate) {
     const grid = document.getElementById('grid');
     const parts = [];
-    const sortedVendors = sortVendors(activeVendors, sortState);
+    const groups = groupVendorsByCategory(activeVendors);
+    const sortedGroups = sortCategoryGroups(groups, sortState);
 
     // Thead
     parts.push('<thead><tr>');
@@ -393,10 +497,18 @@
 
     parts.push('<tbody>');
 
-    // Receber total
-    const rTotal = filteredDates.reduce((s, k) => s + (totalsByDate[k].in), 0);
-    parts.push('<tr class="total-row total-in">');
-    parts.push('<td class="first">Contas a Receber (Total)</td>');
+    // ======= Contas a Receber =======
+    // Verifica se tem manuais de receber para decidir se é expansível
+    const hasReceberManual = Object.values(provisions).some(p => p.tipo === 'receber');
+    const rTotal = filteredDates.reduce((s, k) => s + totalsByDate[k].in, 0);
+    const receberExpanderIcon = hasReceberManual
+      ? (expandedReceber
+        ? '<span class="expander" title="Recolher">▾</span>'
+        : '<span class="expander" title="Expandir">▸</span>')
+      : '<span class="expander disabled">·</span>';
+
+    parts.push('<tr class="total-row total-in" data-toggle-receber="1" style="cursor:' + (hasReceberManual ? 'pointer' : 'default') + ';">');
+    parts.push(`<td class="first">${receberExpanderIcon} Contas a Receber (Total)</td>`);
     filteredDates.forEach(k => {
       const d = F.Dates.parseDateKey(k);
       const we = F.Dates.isWeekend(d) ? ' weekend' : '';
@@ -413,10 +525,51 @@
     parts.push(`<td style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtCellMoney(rTotal)}</td>`);
     parts.push('</tr>');
 
-    // Pagar total
-    const pTotal = filteredDates.reduce((s, k) => s + (totalsByDate[k].out), 0);
-    parts.push('<tr class="total-row total-out">');
-    parts.push('<td class="first">Contas a Pagar (Total)</td>');
+    // Detalhe expandido de Contas a Receber (só manuais, pois importados não têm fornecedor/cliente individualizado na linha)
+    if (expandedReceber && hasReceberManual) {
+      // Agrupa receber manuais por cliente/descrição
+      const receberByClient = new Map();
+      Object.entries(provisions).forEach(([id, p]) => {
+        if (p.tipo !== 'receber') return;
+        const nm = String(p.entidade || '').toUpperCase();
+        if (!receberByClient.has(nm)) receberByClient.set(nm, { byDate: new Map(), total: 0 });
+        const entry = receberByClient.get(nm);
+        const due = F.Dates.parseDateKey(p.vencimento);
+        const eff = F.Dates.effectiveDateReceber(due);
+        const useK = F.Dates.dateKey(viewMode === 'effective' ? eff : due);
+        if (filteredDates.includes(useK)) {
+          if (!entry.byDate.has(useK)) entry.byDate.set(useK, 0);
+          entry.byDate.set(useK, entry.byDate.get(useK) + p.valor);
+          entry.total += p.valor;
+        }
+      });
+      const clientsArr = [...receberByClient.entries()].sort((a, b) => b[1].total - a[1].total);
+      clientsArr.forEach(([nm, info]) => {
+        parts.push('<tr class="vendor-row sub-row">');
+        parts.push(`<td class="first"><div class="row-label" style="padding-left:24px;"><span class="nm" title="${F.escapeHTML(nm)}">${F.escapeHTML(nm)} <span class="tag manual">MANUAL</span></span></div></td>`);
+        filteredDates.forEach(k => {
+          const d = F.Dates.parseDateKey(k);
+          const we = F.Dates.isWeekend(d) ? ' weekend' : '';
+          const val = info.byDate.get(k) || 0;
+          if (val > 0) {
+            parts.push(`<td class="manual-val${we}"><span>${F.Fmt.fmtCellMoney(val)}</span></td>`);
+          } else {
+            parts.push(`<td class="empty${we}"><span>–</span></td>`);
+          }
+        });
+        parts.push(`<td class="in-val" style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtCellMoney(info.total)}</td>`);
+        parts.push('</tr>');
+      });
+    }
+
+    // ======= Contas a Pagar =======
+    const pTotal = filteredDates.reduce((s, k) => s + totalsByDate[k].out, 0);
+    const pagarExpanderIcon = expandedPagarTotal
+      ? '<span class="expander" title="Recolher">▾</span>'
+      : '<span class="expander" title="Expandir">▸</span>';
+
+    parts.push('<tr class="total-row total-out" data-toggle-pagar="1" style="cursor:pointer;">');
+    parts.push(`<td class="first">${pagarExpanderIcon} Contas a Pagar (Total)</td>`);
     filteredDates.forEach(k => {
       const d = F.Dates.parseDateKey(k);
       const we = F.Dates.isWeekend(d) ? ' weekend' : '';
@@ -425,40 +578,65 @@
     parts.push(`<td style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtCellMoney(pTotal)}</td>`);
     parts.push('</tr>');
 
-    parts.push(`<tr class="section-divider"><td class="first" colspan="${filteredDates.length + 2}">↓ Saídas por fornecedor</td></tr>`);
+    // Se expandido: mostra categorias e fornecedores dentro
+    if (expandedPagarTotal) {
+      sortedGroups.forEach(g => {
+        const catExpanded = expandedCategories.has(g.id);
+        const catIcon = catExpanded
+          ? '<span class="expander" title="Recolher">▾</span>'
+          : '<span class="expander" title="Expandir">▸</span>';
 
-    sortedVendors.forEach(v => {
-      const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
-      const isOnlyManual = v.hasManual && !v.hasReal;
-      const rowClass = isOnlyManual ? 'vendor-row manual-row' : 'vendor-row';
-      const manualTag = isOnlyManual ? '<span class="tag manual">MANUAL</span>' : '';
-      const deleteRowBtn = isOnlyManual
-        ? `<button class="danger" title="Excluir lançamentos manuais deste fornecedor" data-delete-vendor="${F.escapeHTML(v.name)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button>`
-        : '';
+        // Linha da categoria
+        parts.push(`<tr class="cat-row" data-toggle-cat="${F.escapeHTML(g.id)}" style="cursor:pointer;">`);
+        parts.push(`<td class="first"><div class="row-label" style="padding-left:20px;"><span class="cat-dot" style="background:${F.escapeHTML(g.cor)};"></span><span class="nm">${catIcon} ${F.escapeHTML(g.nome)} <span class="cat-count-chip">${g.fornecedores.length}</span></span></div></td>`);
+        filteredDates.forEach(k => {
+          const d = F.Dates.parseDateKey(k);
+          const we = F.Dates.isWeekend(d) ? ' weekend' : '';
+          const val = g.byDate.get(k)?.total || 0;
+          parts.push(`<td class="cat-cell${we}">${F.Fmt.fmtCellMoney(val)}</td>`);
+        });
+        parts.push(`<td class="cat-cell" style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtCellMoney(g.total)}</td>`);
+        parts.push('</tr>');
 
-      parts.push(`<tr class="${rowClass}">`);
-      parts.push(`<td class="first"><div class="row-label"><div class="name-group"><span class="nm" title="${F.escapeHTML(v.name)}">${F.escapeHTML(v.name)}${manualTag}</span></div><div class="row-actions">${deleteRowBtn}</div></div></td>`);
-      filteredDates.forEach(k => {
-        const d = F.Dates.parseDateKey(k);
-        const bucket = v.byDate.get(k);
-        const val = bucket?.total || 0;
-        const we = F.Dates.isWeekend(d) ? ' weekend' : '';
-        const hasComment = hasCommentsForCell('pagar', k, v.name);
-        const commentDot = hasComment ? '<span class="comment-dot"></span>' : '';
-        if (val > 0) {
-          const cls = bucket?.hasManual ? 'manual-val' : 'out-val';
-          parts.push(`<td class="${cls}${we}" data-detail="pagar" data-date="${k}" data-vendor="${F.escapeHTML(v.name)}"><span>${F.Fmt.fmtCellMoney(val)}</span>${commentDot}</td>`);
-        } else {
-          parts.push(`<td class="empty${we}" data-add="pagar" data-date="${k}" data-vendor="${F.escapeHTML(v.name)}"><span>–</span>${commentDot}</td>`);
+        // Fornecedores da categoria (se expandida)
+        if (catExpanded) {
+          // Ordena fornecedores conforme sortState
+          const sortedVendors = sortVendors(g.fornecedores, sortState);
+          sortedVendors.forEach(v => {
+            const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
+            const isOnlyManual = v.hasManual && !v.hasReal;
+            const rowClass = isOnlyManual ? 'vendor-row sub-row manual-row' : 'vendor-row sub-row';
+            const manualTag = isOnlyManual ? '<span class="tag manual">MANUAL</span>' : '';
+            const deleteRowBtn = isOnlyManual
+              ? `<button class="danger" title="Excluir lançamentos manuais deste fornecedor" data-delete-vendor="${F.escapeHTML(v.name)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button>`
+              : '';
+
+            parts.push(`<tr class="${rowClass}">`);
+            parts.push(`<td class="first"><div class="row-label" style="padding-left:40px;"><div class="name-group"><span class="nm" title="${F.escapeHTML(v.name)}">${F.escapeHTML(v.name)}${manualTag}</span></div><div class="row-actions">${deleteRowBtn}</div></div></td>`);
+            filteredDates.forEach(k => {
+              const d = F.Dates.parseDateKey(k);
+              const bucket = v.byDate.get(k);
+              const val = bucket?.total || 0;
+              const we = F.Dates.isWeekend(d) ? ' weekend' : '';
+              const hasComment = hasCommentsForCell('pagar', k, v.name);
+              const commentDot = hasComment ? '<span class="comment-dot"></span>' : '';
+              if (val > 0) {
+                const cls = bucket?.hasManual ? 'manual-val' : 'out-val';
+                parts.push(`<td class="${cls}${we}" data-detail="pagar" data-date="${k}" data-vendor="${F.escapeHTML(v.name)}"><span>${F.Fmt.fmtCellMoney(val)}</span>${commentDot}</td>`);
+              } else {
+                parts.push(`<td class="empty${we}" data-add="pagar" data-date="${k}" data-vendor="${F.escapeHTML(v.name)}"><span>–</span>${commentDot}</td>`);
+              }
+            });
+            parts.push(`<td class="out-val" style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtCellMoney(vTotal)}</td>`);
+            parts.push('</tr>');
+          });
         }
       });
-      parts.push(`<td class="out-val" style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtCellMoney(vTotal)}</td>`);
-      parts.push('</tr>');
-    });
+    }
 
     parts.push('</tbody>');
 
-    // Só saldo do dia
+    // Rodapé — só Saldo do dia
     parts.push('<tfoot>');
     parts.push('<tr class="saldo"><td class="first">Saldo do dia</td>');
     let saldoTotal = 0;
@@ -497,6 +675,30 @@
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         deleteManualVendorRow(btn.dataset.deleteVendor);
+      });
+    });
+    grid.querySelectorAll('[data-toggle-receber]').forEach(row => {
+      row.addEventListener('click', (e) => {
+        // Evita disparar quando clica numa célula de valor (que tem data-detail ou data-add)
+        if (e.target.closest('[data-detail]') || e.target.closest('[data-add]')) return;
+        if (!hasReceberManual) return;
+        expandedReceber = !expandedReceber;
+        render();
+      });
+    });
+    grid.querySelectorAll('[data-toggle-pagar]').forEach(row => {
+      row.addEventListener('click', () => {
+        expandedPagarTotal = !expandedPagarTotal;
+        render();
+      });
+    });
+    grid.querySelectorAll('[data-toggle-cat]').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('[data-detail]') || e.target.closest('[data-add]')) return;
+        const cid = row.dataset.toggleCat;
+        if (expandedCategories.has(cid)) expandedCategories.delete(cid);
+        else expandedCategories.add(cid);
+        render();
       });
     });
   }
@@ -988,6 +1190,9 @@
   function collectExportData() {
     const activeVendors = processed.vendors.filter(v => filteredDates.some(k => v.byDate.has(k)));
     const sortedVendors = sortVendors(activeVendors, sortState);
+    const groups = groupVendorsByCategory(activeVendors);
+    const sortedGroups = sortCategoryGroups(groups, sortState);
+
     let rTotal = 0;
     const receberRow = filteredDates.map(k => {
       const v = processed.receberByDate.get(k)?.total || 0;
@@ -1015,7 +1220,7 @@
       sT += s;
       return s;
     });
-    return { activeVendors: sortedVendors, rTotal, receberRow, vendorRows, subOut, totalPagarCells, sT, saldoCells };
+    return { activeVendors: sortedVendors, rTotal, receberRow, vendorRows, subOut, totalPagarCells, sT, saldoCells, sortedGroups };
   }
 
   function csvCell(v) {
@@ -1032,7 +1237,19 @@
     lines.push(header.map(csvCell).join(';'));
     lines.push(['Contas a Receber (Total)', ...ex.receberRow.map(moneyCsv), moneyCsv(ex.rTotal)].map(csvCell).join(';'));
     lines.push(['Contas a Pagar (Total)', ...ex.totalPagarCells.map(moneyCsv), moneyCsv(ex.subOut)].map(csvCell).join(';'));
-    ex.vendorRows.forEach(v => lines.push([v.name, ...v.cells.map(moneyCsv), moneyCsv(v.total)].map(csvCell).join(';')));
+
+    // Categorias e fornecedores
+    ex.sortedGroups.forEach(g => {
+      const catCells = filteredDates.map(k => moneyCsv(g.byDate.get(k)?.total || 0));
+      lines.push([`  [${g.nome}]`, ...catCells, moneyCsv(g.total)].map(csvCell).join(';'));
+      const sortedVendors = sortVendors(g.fornecedores, sortState);
+      sortedVendors.forEach(v => {
+        const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
+        const cells = filteredDates.map(k => moneyCsv(v.byDate.get(k)?.total || 0));
+        lines.push([`    ${v.name}`, ...cells, moneyCsv(vTotal)].map(csvCell).join(';'));
+      });
+    });
+
     lines.push(['Saldo do dia', ...ex.saldoCells.map(moneyCsv), moneyCsv(ex.sT)].map(csvCell).join(';'));
 
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -1048,7 +1265,21 @@
         aoa.push(['Item', ...filteredDates.map(k => F.Fmt.fmtFullDate(F.Dates.parseDateKey(k))), 'Total']);
         aoa.push(['Contas a Receber (Total)', ...ex.receberRow, ex.rTotal]);
         aoa.push(['Contas a Pagar (Total)', ...ex.totalPagarCells, ex.subOut]);
-        ex.vendorRows.forEach(v => aoa.push([v.name, ...v.cells, v.total]));
+
+        // Categorias e fornecedores
+        const catRowIndices = [];
+        ex.sortedGroups.forEach(g => {
+          const catCells = filteredDates.map(k => g.byDate.get(k)?.total || 0);
+          aoa.push([`▸ ${g.nome}`, ...catCells, g.total]);
+          catRowIndices.push(aoa.length - 1); // armazena índice 0-based da linha
+          const sortedVendors = sortVendors(g.fornecedores, sortState);
+          sortedVendors.forEach(v => {
+            const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
+            const cells = filteredDates.map(k => v.byDate.get(k)?.total || 0);
+            aoa.push([`    ${v.name}`, ...cells, vTotal]);
+          });
+        });
+
         aoa.push(['Saldo do dia', ...ex.saldoCells, ex.sT]);
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -1149,9 +1380,27 @@
           ...chunkIndices.map(i => ({ content: fmtMoneyForPdf(ex.totalPagarCells[i]), styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } })),
           { content: fmtMoneyForPdf(pTotalChunk), styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } },
         ]);
-        ex.vendorRows.forEach(v => {
-          const chunkTotal = chunkIndices.reduce((a, i) => a + v.cells[i], 0);
-          body.push([v.name, ...chunkIndices.map(i => fmtMoneyForPdf(v.cells[i])), fmtMoneyForPdf(chunkTotal)]);
+        ex.sortedGroups.forEach(g => {
+          // Linha de categoria (fundo cinza claro, texto escuro)
+          const catChunkTotal = chunkIndices.reduce((a, i) => {
+            const dk = filteredDates[i];
+            return a + (g.byDate.get(dk)?.total || 0);
+          }, 0);
+          body.push([
+            { content: `▸ ${g.nome}`, styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [10, 14, 22] } },
+            ...chunkIndices.map(i => {
+              const dk = filteredDates[i];
+              const val = g.byDate.get(dk)?.total || 0;
+              return { content: fmtMoneyForPdf(val), styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [180, 35, 24] } };
+            }),
+            { content: fmtMoneyForPdf(catChunkTotal), styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [180, 35, 24] } },
+          ]);
+          const sortedVendors = sortVendors(g.fornecedores, sortState);
+          sortedVendors.forEach(v => {
+            const cells = filteredDates.map(k => v.byDate.get(k)?.total || 0);
+            const chunkTotal = chunkIndices.reduce((a, i) => a + cells[i], 0);
+            body.push([`    ${v.name}`, ...chunkIndices.map(i => fmtMoneyForPdf(cells[i])), fmtMoneyForPdf(chunkTotal)]);
+          });
         });
         const sTChunk = chunkIndices.reduce((a, i) => a + ex.saldoCells[i], 0);
         body.push([

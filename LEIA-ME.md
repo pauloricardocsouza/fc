@@ -7,6 +7,7 @@ Sistema web de fluxo de caixa, dashboard e processamento de relatórios para Fil
 ```
 ├── index.html              # Fluxo de Caixa (página principal)
 ├── dashboard.html          # Dashboard com indicadores
+├── categorias.html         # Gerenciamento de categorias de fornecedores
 ├── processamento.html      # Upload de relatórios SIA
 ├── login.html              # Tela de login
 │
@@ -14,6 +15,7 @@ Sistema web de fluxo de caixa, dashboard e processamento de relatórios para Fil
 ├── fluxo.css               # Estilos da grade de fluxo
 ├── shared.js               # Firebase + Auth + utilitários
 ├── fluxo.js                # Lógica do fluxo de caixa
+├── categorias.js           # Lógica da página de categorias
 │
 └── assets/
     └── logo.svg            # Logo Filadélfia (interlocking F's)
@@ -200,6 +202,29 @@ O sistema é 100% estático (HTML + CSS + JS). Basta subir a pasta inteira para:
 - **Contas a Receber:** cliente paga no próximo dia útil a partir do vencimento; o valor compensa no dia útil seguinte (D+1)
 
 Você pode alternar entre "Data efetiva" e "Vencimento" no topo da grade.
+
+### Categorias de fornecedores (novidade v2)
+
+A partir da v2, fornecedores podem ser agrupados em categorias (ex.: Bancos, Impostos, Aluguéis, Insumos).
+
+**Características:**
+
+- Categorias são compartilhadas entre todos os usuários (via Firebase)
+- Existe uma categoria nativa chamada **"DEMAIS FORNECEDORES"** (não pode ser excluída) que recebe automaticamente quem não está atribuído a nenhuma categoria
+- Na grade de fluxo, a linha "Contas a Pagar (Total)" fica expansível: clique para ver as categorias; clique em uma categoria para ver seus fornecedores
+- Fornecedores importados e de lançamentos manuais aparecem automaticamente na página de categorias
+- Atribuições persistem entre importações: se você atribui "ITAU UNIBANCO" à categoria "BANCOS", a atribuição permanece mesmo depois de reimportar os relatórios
+
+**Como usar:**
+
+1. Acesse a página **Categorias** no menu superior
+2. Crie uma nova categoria com nome e cor (ex.: BANCOS, azul)
+3. Clique na categoria criada para gerenciá-la
+4. A tela mostra dois painéis:
+   - Esquerda: fornecedores já atribuídos a essa categoria
+   - Direita: fornecedores disponíveis (não atribuídos ou em outras categorias)
+5. Selecione fornecedores e use os botões **Atribuir** ou **Devolver**
+6. No fluxo de caixa, clique em "Contas a Pagar (Total)" para expandir e ver os agrupamentos
 
 ### Dashboard — Indicadores disponíveis
 
