@@ -59,6 +59,32 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
             ".validate": "newData.hasChildren(['author', 'authorUid', 'text', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 1000 && newData.child('authorUid').val() === auth.uid"
           }
         }
+      },
+      "lancamentos": {
+        ".read": "auth != null",
+        "$lancId": {
+          ".write": "auth != null && (!data.exists() || data.child('authorUid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['tipo', 'entidade', 'vencimento', 'valor', 'authorUid']) && newData.child('authorUid').val() === auth.uid && newData.child('valor').isNumber() && newData.child('valor').val() > 0 && newData.child('entidade').isString() && newData.child('entidade').val().length <= 120"
+        }
+      },
+      "deletados": {
+        ".read": "auth != null",
+        "$titleId": {
+          ".write": "auth != null"
+        }
+      },
+      "categorias": {
+        ".read": "auth != null",
+        "$categoriaId": {
+          ".write": "auth != null && (!data.exists() || !data.child('nativa').val() || newData.child('nativa').val() === data.child('nativa').val())",
+          ".validate": "newData.hasChild('nome') && newData.child('nome').isString() && newData.child('nome').val().length >= 2 && newData.child('nome').val().length <= 60"
+        }
+      },
+      "fornecedor_categoria": {
+        ".read": "auth != null",
+        "$key": {
+          ".write": "auth != null"
+        }
       }
     }
   }
@@ -67,10 +93,13 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
 
 **O que essas regras fazem:**
 
-- Apenas usuários autenticados leem os comentários
-- Apenas o autor do comentário pode editá-lo ou excluí-lo
-- Impede falsificação de identidade (o `authorUid` precisa bater com o UID autenticado)
-- Limita texto a 1000 caracteres
+- **Comentários:** qualquer autenticado lê; só o autor edita/exclui o próprio. Texto limitado a 1000 caracteres.
+- **Lançamentos manuais:** qualquer autenticado lê; só o autor edita/exclui o próprio. Valor precisa ser positivo, nome do fornecedor/cliente até 120 caracteres.
+- **Deletados (títulos importados ocultados):** qualquer autenticado lê e edita — a operação é compartilhada entre a equipe.
+- **Categorias:** qualquer autenticado cria, edita ou exclui. Categorias nativas (como "DEMAIS FORNECEDORES") não podem ser desnaturalizadas. Nome entre 2 e 60 caracteres.
+- **Fornecedor → categoria:** qualquer autenticado atribui/remove categorias de fornecedores.
+
+**Importante:** em todos os casos o `authorUid` é validado contra o token de autenticação do Firebase, impedindo falsificação de identidade.
 
 ### 5. Registrar aplicativo Web
 
@@ -193,18 +222,33 @@ Você pode alternar entre "Data efetiva" e "Vencimento" no topo da grade.
 
 ## Armazenamento local (localStorage)
 
-O sistema armazena no navegador:
+O sistema armazena no navegador **apenas** os dados importados do ERP (que são muito volumosos para sincronizar):
 
 | Chave | Conteúdo |
 |---|---|
-| `filadelfia_fluxo_caixa_v2` | Relatórios importados |
-| `filadelfia_provisoes_v1` | Lançamentos manuais |
-| `filadelfia_deleted_imp_v1` | Títulos importados ocultados |
-| `filadelfia_trash_v1` | Lixeira |
+| `filadelfia_fluxo_caixa_v2` | Relatórios importados (SIA) |
 | `filadelfia_last_author` | Último autor usado |
 | `filadelfia_remember_login` | Email lembrado |
 
-**Os dados ficam apenas no dispositivo do usuário.** Apenas os comentários são sincronizados via Firebase.
+**Importante:** a partir da v2, os seguintes dados passaram para o Firebase (sincronizados entre todos os usuários):
+
+- Lançamentos manuais
+- Títulos importados ocultados
+- Categorias de fornecedores
+- Atribuição fornecedor → categoria
+- Comentários
+
+Ou seja: um lançamento manual criado por um usuário aparece na tela dos outros imediatamente.
+
+## Atualização da v1 para a v2
+
+Se você já estava usando a v1 e vai atualizar:
+
+1. **Antes de atualizar os arquivos**, pela v1 antiga, anote quaisquer lançamentos manuais importantes que queira preservar (a migração não é automática; a v2 lê do Firebase).
+2. Substitua todos os arquivos HTML/CSS/JS pela v2
+3. No Firebase, **atualize as regras de segurança** (aba Realtime Database → Regras) com o JSON expandido mostrado acima
+4. Faça login normalmente — os comentários antigos permanecem
+5. Recadastre os lançamentos manuais que quiser manter. Agora eles ficam no Firebase e todos os usuários podem ver.
 
 ## Contato
 
