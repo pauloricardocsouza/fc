@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v3.1';
+  const APP_VERSION = 'v3.3';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -176,10 +176,19 @@
 
      Primeiro usuário que abre o sistema e não encontra NENHUM admin
      se promove automaticamente a admin (bootstrap inicial).
+
+     Além disso, certos e-mails são SEMPRE promovidos a admin automaticamente
+     (lista HARDCODED_ADMINS), mesmo que o registro já exista com role diferente.
+     Útil para garantir acesso administrativo permanente.
      ================================================ */
   const ROLE_ADMIN = 'admin';
   const ROLE_EDITOR = 'editor';
   const ROLE_VIEWER = 'viewer';
+
+  // E-mails que sempre têm perfil admin (promovidos automaticamente no login)
+  const HARDCODED_ADMINS = [
+    'r2@solucoesr2.com.br',
+  ];
 
   // Hierarquia: admin > editor > viewer. Um role "tem permissão" se for maior ou igual.
   const ROLE_WEIGHT = { admin: 3, editor: 2, viewer: 1 };
@@ -188,6 +197,8 @@
     if (!state.user || state.user.isDemo) return;
     if (!state.fbDB) return;
     const uid = state.user.uid;
+    const email = (state.user.email || '').toLowerCase();
+    const isHardcodedAdmin = HARDCODED_ADMINS.includes(email);
     const ref = state.fbDB.ref(`filadelfia/usuarios/${uid}`);
     const snap = await ref.once('value');
     const existing = snap.val();
@@ -197,7 +208,8 @@
       const allSnap = await state.fbDB.ref('filadelfia/usuarios').once('value');
       const all = allSnap.val() || {};
       const hasAnyAdmin = Object.values(all).some(u => u && u.role === ROLE_ADMIN);
-      const role = hasAnyAdmin ? ROLE_EDITOR : ROLE_ADMIN; // bootstrap: primeiro vira admin
+      // Admin se: é hardcoded OU primeiro usuário do sistema
+      const role = (isHardcodedAdmin || !hasAnyAdmin) ? ROLE_ADMIN : ROLE_EDITOR;
 
       await ref.set({
         uid,
@@ -214,8 +226,25 @@
     } else {
       state.user.role = existing.role || ROLE_EDITOR;
       state.user.displayName = existing.displayName || state.user.displayName;
-      // Atualiza lastLoginAt (best-effort, não bloqueia)
-      ref.update({ lastLoginAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+
+      // Se é hardcoded admin mas role está diferente, corrige automaticamente
+      if (isHardcodedAdmin && existing.role !== ROLE_ADMIN) {
+        try {
+          await ref.update({
+            role: ROLE_ADMIN,
+            lastLoginAt: firebase.database.ServerValue.TIMESTAMP,
+          });
+          state.user.role = ROLE_ADMIN;
+          console.log(`[Auth] ${email} foi promovido a admin (hardcoded).`);
+        } catch (err) {
+          console.warn('[Auth] Falha ao promover hardcoded admin:', err);
+          // Atualiza só lastLogin
+          ref.update({ lastLoginAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+        }
+      } else {
+        // Atualiza lastLoginAt (best-effort, não bloqueia)
+        ref.update({ lastLoginAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+      }
     }
   }
 
@@ -1508,25 +1537,38 @@
   // Chamado pela página do fluxo ao inicializar; se já existir, não faz nada
   async function ensureDefaultBanks() {
     if (!state.fbDB) return;
-    const snap = await dbRef('bancos').once('value');
-    const existing = snap.val();
-    if (existing && Object.keys(existing).length > 0) return;
+    try {
+      const snap = await dbRef('bancos').once('value');
+      const existing = snap.val();
+      if (existing && Object.keys(existing).length > 0) {
+        console.log('[Bancos] Já existem', Object.keys(existing).length, 'bancos cadastrados.');
+        return;
+      }
 
-    // Só cria se usuário pode escrever (evita erro de permissão para viewer)
-    if (!isEditor()) return;
+      // Só cria se usuário pode escrever (evita erro de permissão para viewer)
+      if (!isEditor()) {
+        console.log('[Bancos] Usuário não é editor, não pode criar bancos padrão.');
+        return;
+      }
 
-    const updates = {};
-    DEFAULT_BANKS.forEach(b => {
-      const id = 'bank_' + b.nome.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-      updates[id] = {
-        ...b,
-        arquivado: false,
-        createdBy: state.user?.uid || null,
-        createdByName: state.user?.displayName || 'Sistema',
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-      };
-    });
-    await dbRef('bancos').update(updates);
+      console.log('[Bancos] Criando', DEFAULT_BANKS.length, 'bancos padrão…');
+      const updates = {};
+      DEFAULT_BANKS.forEach(b => {
+        const id = 'bank_' + b.nome.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        updates[id] = {
+          ...b,
+          arquivado: false,
+          createdBy: state.user?.uid || null,
+          createdByName: state.user?.displayName || 'Sistema',
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+        };
+      });
+      await dbRef('bancos').update(updates);
+      console.log('[Bancos] ✓ Criados com sucesso');
+    } catch (err) {
+      console.error('[Bancos] Erro ao criar bancos padrão:', err);
+      throw err;
+    }
   }
 
   async function createBank(nome, tipo, ordem) {

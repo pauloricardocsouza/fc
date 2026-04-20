@@ -300,11 +300,22 @@
     const vendor = params.get('vendor');
     if (!detail || !date) return;
 
-    // Ajusta filtro para garantir que a data está visível
-    if (!processed.allDates.includes(date)) {
+    // Ajusta filtro para garantir que a data está visível.
+    // Validação mais permissiva: aceita se a data estiver dentro do range
+    // entre o primeiro e último dia de allDates (ainda que não haja movimento
+    // exatamente naquele dia).
+    const allDates = processed.allDates;
+    const inPeriod = allDates.length && date >= allDates[0] && date <= allDates[allDates.length - 1];
+    // Fallback: checar também o período importado (pode ser mais amplo que allDates)
+    const importStart = dataStore?.periodStart;
+    const importEnd = dataStore?.periodEnd;
+    const inImportPeriod = importStart && importEnd && date >= importStart && date <= importEnd;
+
+    if (!inPeriod && !inImportPeriod) {
       F.UI.showToast('A data do comentário está fora do período importado', 'error');
       return;
     }
+
     const startInput = document.getElementById('filter-start');
     const endInput = document.getElementById('filter-end');
     if (date < startInput.value) startInput.value = date;
@@ -1707,12 +1718,9 @@
     const wrap = document.querySelector('.saldos-wrap');
     if (!wrap) return;
 
-    // Se não tem bancos, esconde o painel todo (estado inicial, ainda não populou)
     const bancosAtivos = Object.entries(bancos).filter(([id, b]) => b && !b.arquivado);
-    if (!bancosAtivos.length) {
-      wrap.style.display = 'none';
-      return;
-    }
+
+    // Painel SEMPRE visível (permite criar primeiros bancos)
     wrap.style.display = '';
 
     // Aplicar role guards (esconde "Nova conta" de viewers)
@@ -1769,7 +1777,35 @@
     const isAdminUser = F.Auth.isAdmin();
 
     if (!bancosList.length) {
-      el.innerHTML = '<div style="padding: 20px; color: var(--text-muted); font-size: 12px; text-align: center; font-style: italic;">Nenhum banco nesta categoria.</div>';
+      // Se é o grupo de livres e ainda não tem nenhum banco no sistema, mostra botão de cadastro padrão
+      const totalBancos = Object.keys(bancos).length;
+      if (elId === 'saldos-lista-livres' && totalBancos === 0 && canEdit) {
+        el.innerHTML = `
+          <div style="padding: 24px 20px; text-align: center;">
+            <div style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 12px;">
+              Ainda não há contas bancárias cadastradas.
+            </div>
+            <button class="btn" id="btn-cadastrar-bancos-padrao">+ Cadastrar 19 bancos padrão</button>
+            <div style="color: var(--text-muted); font-size: 10.5px; margin-top: 8px; font-family: 'JetBrains Mono', monospace;">
+              ABC, ITAU, SAFRA, BRADESCO, CAIXA, C6, BB, SANTANDER, ASA, SOFISA + 9 vinculadas
+            </div>
+          </div>
+        `;
+        document.getElementById('btn-cadastrar-bancos-padrao')?.addEventListener('click', async () => {
+          try {
+            F.UI.showLoading('Cadastrando bancos padrão…');
+            await F.DB.ensureDefaultBanks();
+            F.UI.showToast('19 bancos cadastrados', 'success');
+          } catch (err) {
+            F.UI.showToast('Erro: ' + err.message, 'error');
+            console.error(err);
+          } finally {
+            F.UI.hideLoading();
+          }
+        });
+      } else {
+        el.innerHTML = '<div style="padding: 16px; color: var(--text-muted); font-size: 12px; text-align: center; font-style: italic;">Nenhuma conta neste grupo.</div>';
+      }
       return;
     }
 
