@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v2.5';
+  const APP_VERSION = 'v2.7';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -385,9 +385,6 @@
           <span class="sub">Sistema Financeiro</span>
         </div>
       </a>
-      <button class="menu-toggle" id="menu-toggle" aria-label="Menu">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
-      </button>
       <nav class="nav" id="nav">
         <a href="index.html" ${activePage === 'fluxo' ? 'class="active"' : ''}>Fluxo de Caixa</a>
         <a href="dashboard.html" ${activePage === 'dashboard' ? 'class="active"' : ''}>Dashboard</a>
@@ -401,19 +398,53 @@
           <span class="sync-dot"></span>
           <span id="sync-text">—</span>
         </div>
-        <div class="user-chip">
-          <div class="avatar" title="${escapeHTML(u.email)}">${escapeHTML(initials)}</div>
+        <div class="user-chip" id="user-chip">
+          <button class="avatar" id="user-avatar-btn" title="${escapeHTML(u.email)}" aria-label="Menu do usuário">${escapeHTML(initials)}</button>
           <span class="name-hide-mobile">${escapeHTML(u.displayName)}</span>
-          <button id="btn-logout" title="Sair">Sair</button>
+          <button id="btn-logout" class="name-hide-mobile" title="Sair">Sair</button>
+          <div class="user-dropdown" id="user-dropdown" hidden>
+            <div class="user-dropdown-info">
+              <div class="user-dropdown-name">${escapeHTML(u.displayName || '')}</div>
+              <div class="user-dropdown-email">${escapeHTML(u.email || '')}</div>
+            </div>
+            <button id="btn-logout-mobile" class="user-dropdown-logout">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Sair
+            </button>
+          </div>
         </div>
+        <button class="menu-toggle" id="menu-toggle" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
+        </button>
       </div>
     `;
 
-    document.getElementById('menu-toggle')?.addEventListener('click', () => {
+    document.getElementById('menu-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
       document.getElementById('nav')?.classList.toggle('open');
+      document.getElementById('user-dropdown')?.setAttribute('hidden', '');
     });
     document.getElementById('btn-logout')?.addEventListener('click', () => {
       if (confirm('Deseja sair da sua conta?')) logout();
+    });
+    // Avatar dropdown (principalmente para mobile)
+    const avatarBtn = document.getElementById('user-avatar-btn');
+    const dropdown = document.getElementById('user-dropdown');
+    avatarBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // No desktop, comportamento normal (fazer logout direto via botão ao lado)
+      if (window.innerWidth > 860) return;
+      if (dropdown.hasAttribute('hidden')) dropdown.removeAttribute('hidden');
+      else dropdown.setAttribute('hidden', '');
+      document.getElementById('nav')?.classList.remove('open');
+    });
+    document.getElementById('btn-logout-mobile')?.addEventListener('click', () => {
+      if (confirm('Deseja sair da sua conta?')) logout();
+    });
+    // Fecha dropdown ao clicar fora
+    document.addEventListener('click', (e) => {
+      if (!dropdown) return;
+      if (!e.target.closest('#user-chip')) dropdown.setAttribute('hidden', '');
     });
 
     if (!IS_FIREBASE_CONFIGURED) {
@@ -475,7 +506,7 @@
   function renderFooter() {
     const footer = document.querySelector('footer');
     if (!footer) return;
-    const copyText = 'FILADELFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS';
+    const copyText = 'DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS';
     footer.innerHTML = `
       <span class="footer-text">${copyText}</span>
       <span class="footer-version" title="Versão do sistema">${APP_VERSION}</span>

@@ -249,13 +249,15 @@ table.grid tbody tr.total-row td.first {
   position: sticky;
   left: 0;
   z-index: 2;
+  background: var(--surface); /* base opaca para não deixar valores rolarem por trás */
 }
 table.grid tbody tr.total-row.total-in td.first {
-  background: var(--accent-bg-strong);
+  /* Cor opaca (sem alpha) para cobrir valores que rolam horizontalmente */
+  background: #dceefb;
   color: var(--accent-text);
 }
 table.grid tbody tr.total-row.total-out td.first {
-  background: var(--danger-bg-strong);
+  background: #f8dcd9;
   color: var(--danger-text);
 }
 table.grid tbody tr.total-row td.weekend {
@@ -407,9 +409,9 @@ table.grid tbody td.manual-val:hover {
 
 table.grid tbody tr.vendor-row:hover td { background: var(--surface-2); }
 table.grid tbody tr.vendor-row:hover td.first { background: #eaf3fa; }
-table.grid tbody tr.manual-row.vendor-row:hover td.first { background: rgba(124, 58, 237, 0.15); }
+table.grid tbody tr.manual-row.vendor-row:hover td.first { background: #e9defb; }
 table.grid tbody tr.manual-row td.first {
-  background: linear-gradient(90deg, var(--violet-bg) 0%, var(--surface) 100%);
+  background: #efe8fc; /* violeta claro opaco */
 }
 
 table.grid tbody tr.section-divider td {
@@ -433,7 +435,7 @@ table.grid tbody tr.receber-row td {
   border-bottom: 1px solid rgba(28, 167, 236, 0.2);
 }
 table.grid tbody tr.receber-row td.first {
-  background: var(--accent-bg-strong);
+  background: #dceefb; /* azul claro opaco */
   color: var(--accent-text);
   font-weight: 700;
 }
