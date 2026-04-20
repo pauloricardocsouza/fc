@@ -177,13 +177,20 @@ body {
   border-radius: 4px;
   background: rgba(255,255,255,0.08);
   color: #c9d0da;
+  cursor: help;
+  transition: background 0.2s, color 0.2s;
 }
 .sync-badge.connected { color: #6ee7b7; background: rgba(16,152,84,0.15); }
 .sync-badge.offline { color: #fca5a5; background: rgba(217,45,32,0.15); }
+.sync-badge.syncing { color: #fcd34d; background: rgba(245,165,36,0.15); }
 .sync-badge .sync-dot {
   width: 6px; height: 6px; border-radius: 50%;
   background: currentColor;
 }
+.sync-badge.syncing .sync-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 .last-update {
   font-family: 'JetBrains Mono', monospace;
@@ -558,6 +565,31 @@ footer .footer-version {
   .page-head { padding: 20px 16px 14px; }
   .page-head h1 { font-size: 26px; }
   .user-chip .name-hide-mobile { display: none; }
+
+  /* Sync badge: só a bolinha colorida no mobile */
+  .sync-badge {
+    padding: 0 !important;
+    background: transparent !important;
+    gap: 0 !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    color: transparent !important;
+    font-size: 0 !important;
+  }
+  .sync-badge #sync-text,
+  .sync-badge span:not(.sync-dot) { display: none !important; }
+  .sync-badge .sync-dot {
+    width: 12px !important;
+    height: 12px !important;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.15) !important;
+    background: #f5a524 !important;
+  }
+  .sync-badge.connected .sync-dot { background: #10b981 !important; }
+  .sync-badge.offline .sync-dot { background: #ef4444 !important; }
+  .sync-badge.syncing .sync-dot { background: #f5a524 !important; animation: pulse-dot 1.2s ease-in-out infinite; }
 }
 
 @media (max-width: 560px) {

@@ -689,9 +689,12 @@
         // Sincronizar para o Firebase (permite acesso em qualquer dispositivo)
         if (F.IS_FIREBASE_CONFIGURED) {
           try {
+            F.UI.updateSyncBadge('syncing', 'Sincronizando');
             await F.DB.saveImportedData(payload);
+            F.UI.updateSyncBadge('connected', 'Sincronizado');
           } catch (err) {
             console.error('Falha ao sincronizar com Firebase:', err);
+            F.UI.updateSyncBadge('offline', 'Erro');
             F.UI.showToast('Salvo localmente, mas falhou sincronizar: ' + err.message, 'error');
           }
         }

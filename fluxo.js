@@ -58,6 +58,7 @@
       if (!isNewer) return;
       // Baixa payload completo (pode demorar com muitos títulos, mas só roda quando necessário)
       try {
+        F.UI.updateSyncBadge('syncing', 'Atualizando');
         const data = await F.DB.fetchImportedData();
         if (!data) return;
         dataStore = data;
@@ -67,8 +68,10 @@
         } else {
           finishInit();
         }
+        F.UI.updateSyncBadge('connected', 'Sincronizado');
       } catch (err) {
         console.error('Falha ao baixar dados importados:', err);
+        F.UI.updateSyncBadge('offline', 'Erro');
       }
     }));
 

@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v2.4';
+  const APP_VERSION = 'v2.5';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -420,9 +420,34 @@
       updateSyncBadge('offline', 'Sem Firebase');
     } else if (state.fbDB) {
       state.fbDB.ref('.info/connected').on('value', snap => {
-        updateSyncBadge(snap.val() ? 'connected' : 'offline', snap.val() ? 'Sincronizado' : 'Offline');
+        const isConnected = !!snap.val();
+        if (isConnected) {
+          updateSyncBadge('connected', 'Sincronizado');
+          // Ao conectar, busca metadados dos dados importados para montar tooltip informativo
+          refreshSyncTooltip();
+        } else {
+          updateSyncBadge('offline', 'Offline');
+        }
       });
     }
+  }
+
+  // Busca metadados do Firebase para atualizar o tooltip do sync badge
+  // com a última data de importação (útil para saber se os dados estão em dia)
+  async function refreshSyncTooltip() {
+    try {
+      const badge = document.getElementById('sync-badge');
+      if (!badge) return;
+      const snap = await dbRef('dados_importados_meta').once('value');
+      const meta = snap.val();
+      if (meta && meta.processedAt) {
+        const d = new Date(meta.processedAt);
+        const dateStr = d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        badge.title = `Sincronizado · dados importados em ${dateStr} por ${meta.processedBy || 'desconhecido'}`;
+      } else {
+        badge.title = 'Sincronizado · nenhuma importação registrada';
+      }
+    } catch {}
   }
 
   function updateSyncBadge(status, text) {
@@ -431,6 +456,17 @@
     badge.className = 'sync-badge ' + status;
     const t = document.getElementById('sync-text');
     if (t) t.textContent = text;
+    // Atualiza tooltip com base no status atual (em mobile só o tooltip comunica)
+    if (status === 'offline') {
+      badge.title = 'Sem conexão com o servidor';
+    } else if (status === 'syncing') {
+      badge.title = 'Sincronizando dados…';
+    } else if (status === 'connected') {
+      // Tooltip detalhado é atualizado via refreshSyncTooltip quando há metadados
+      if (!badge.title || badge.title.startsWith('Sem conexão') || badge.title === 'Status de sincronização') {
+        badge.title = 'Sincronizado';
+      }
+    }
   }
 
   /* ========== Footer ========== */
