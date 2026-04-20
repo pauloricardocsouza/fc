@@ -302,10 +302,17 @@
     }[c]));
   }
 
-  /* Limpa nome do fornecedor/cliente, removendo prefixo numérico "000123-" */
+  /* Limpa nome do fornecedor/cliente, removendo prefixo numérico "000123-" e normalizando em CAIXA ALTA */
   function cleanEntityName(name) {
     const s = String(name == null ? '' : name).trim();
-    return s.replace(/^0*\d+\s*[-–]\s*/, '').trim() || s;
+    const cleaned = s.replace(/^0*\d+\s*[-–]\s*/, '').trim() || s;
+    return cleaned.toUpperCase();
+  }
+
+  /* Normaliza nome para uso como chave única (remove acentos e caracteres especiais que não podem ir em chaves Firebase) */
+  function normalizeKey(name) {
+    const s = String(name == null ? '' : name).trim().toUpperCase();
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.#$/\[\]]/g, '_');
   }
 
   /* ========== Local storage com tratamento de quota ========== */
@@ -376,6 +383,7 @@
       <nav class="nav" id="nav">
         <a href="index.html" ${activePage === 'fluxo' ? 'class="active"' : ''}>Fluxo de Caixa</a>
         <a href="dashboard.html" ${activePage === 'dashboard' ? 'class="active"' : ''}>Dashboard</a>
+        <a href="categorias.html" ${activePage === 'categorias' ? 'class="active"' : ''}>Categorias</a>
         <a href="processamento.html" ${activePage === 'processamento' ? 'class="active"' : ''}>Processamento</a>
       </nav>
       <div class="topbar-meta">
@@ -471,6 +479,143 @@
     }
   });
 
+  /* ========== Firebase Database (CRUD) ==========
+     Todas as operações usam o user.uid para marcar autoria.
+     Qualquer usuário autenticado pode ler/escrever categorias (compartilhadas).
+     Lançamentos e comentários só podem ser modificados pelo autor.
+     ================================================= */
+  const DB_ROOT = 'filadelfia';
+
+  function dbReady() {
+    return !!state.fbDB;
+  }
+  function dbRef(path) {
+    if (!state.fbDB) throw new Error('Firebase não configurado');
+    return state.fbDB.ref(`${DB_ROOT}/${path}`);
+  }
+
+  // Lançamentos manuais
+  async function createLancamento(data) {
+    const ref = dbRef('lancamentos').push();
+    const payload = {
+      ...data,
+      authorUid: state.user?.uid || null,
+      authorName: state.user?.displayName || state.user?.email || 'Anônimo',
+      authorEmail: state.user?.email || null,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      updatedAt: firebase.database.ServerValue.TIMESTAMP,
+    };
+    await ref.set(payload);
+    return ref.key;
+  }
+  async function updateLancamento(id, data) {
+    const payload = { ...data, updatedAt: firebase.database.ServerValue.TIMESTAMP };
+    await dbRef(`lancamentos/${id}`).update(payload);
+  }
+  async function deleteLancamento(id) {
+    await dbRef(`lancamentos/${id}`).remove();
+  }
+  function subscribeLancamentos(callback) {
+    if (!state.fbDB) { callback({}); return () => {}; }
+    const ref = dbRef('lancamentos');
+    const handler = snap => callback(snap.val() || {});
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+
+  // Títulos importados ocultados (soft-delete sincronizado)
+  async function hideTitle(titleId, titleData) {
+    await dbRef(`deletados/${titleId}`).set({
+      ...titleData,
+      deletedBy: state.user?.uid || null,
+      deletedByName: state.user?.displayName || state.user?.email || 'Anônimo',
+      deletedAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+  }
+  async function restoreTitle(titleId) {
+    await dbRef(`deletados/${titleId}`).remove();
+  }
+  function subscribeHiddenTitles(callback) {
+    if (!state.fbDB) { callback({}); return () => {}; }
+    const ref = dbRef('deletados');
+    const handler = snap => callback(snap.val() || {});
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+
+  // Categorias (nativamente existe "DEMAIS FORNECEDORES")
+  const DEFAULT_CATEGORY_NAME = 'DEMAIS FORNECEDORES';
+
+  async function ensureDefaultCategory() {
+    if (!state.fbDB) return null;
+    const snap = await dbRef('categorias').once('value');
+    const cats = snap.val() || {};
+    const existing = Object.entries(cats).find(([id, c]) => c && c.nativa === true);
+    if (existing) return existing[0];
+    // Cria nativa
+    const id = 'cat_default_demais';
+    await dbRef(`categorias/${id}`).set({
+      nome: DEFAULT_CATEGORY_NAME,
+      cor: '#6b7280',
+      nativa: true,
+      createdBy: state.user?.uid || null,
+      createdByName: state.user?.displayName || state.user?.email || 'Sistema',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+    return id;
+  }
+
+  async function createCategoria(nome, cor) {
+    const id = 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    await dbRef(`categorias/${id}`).set({
+      nome: String(nome).trim().toUpperCase(),
+      cor: cor || '#6b7280',
+      nativa: false,
+      createdBy: state.user?.uid || null,
+      createdByName: state.user?.displayName || state.user?.email || 'Anônimo',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+    return id;
+  }
+  async function updateCategoria(id, data) {
+    const payload = { ...data };
+    if (payload.nome) payload.nome = String(payload.nome).trim().toUpperCase();
+    await dbRef(`categorias/${id}`).update(payload);
+  }
+  async function deleteCategoria(id) {
+    await dbRef(`categorias/${id}`).remove();
+  }
+  function subscribeCategorias(callback) {
+    if (!state.fbDB) { callback({}); return () => {}; }
+    const ref = dbRef('categorias');
+    const handler = snap => callback(snap.val() || {});
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+
+  // Atribuição fornecedor -> categoria (chave = nome normalizado)
+  async function setFornecedorCategoria(fornecedor, categoriaId) {
+    const key = normalizeKey(fornecedor);
+    if (!key) return;
+    if (categoriaId) {
+      await dbRef(`fornecedor_categoria/${key}`).set({
+        categoriaId,
+        fornecedorNome: String(fornecedor).toUpperCase(),
+        assignedBy: state.user?.uid || null,
+        assignedAt: firebase.database.ServerValue.TIMESTAMP,
+      });
+    } else {
+      await dbRef(`fornecedor_categoria/${key}`).remove();
+    }
+  }
+  function subscribeFornecedorCategoria(callback) {
+    if (!state.fbDB) { callback({}); return () => {}; }
+    const ref = dbRef('fornecedor_categoria');
+    const handler = snap => callback(snap.val() || {});
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+
   /* ========== Export público ========== */
   window.Filadelfia = {
     KEYS,
@@ -491,7 +636,15 @@
     },
     escapeHTML,
     cleanEntityName,
+    normalizeKey,
     Storage: { safeSetItem, safeGetItem, safeGetJSON, safeSetJSON },
+    DB: {
+      dbReady, dbRef,
+      createLancamento, updateLancamento, deleteLancamento, subscribeLancamentos,
+      hideTitle, restoreTitle, subscribeHiddenTitles,
+      createCategoria, updateCategoria, deleteCategoria, subscribeCategorias, ensureDefaultCategory, DEFAULT_CATEGORY_NAME,
+      setFornecedorCategoria, subscribeFornecedorCategoria,
+    },
     UI: { renderTopbar, updateSyncBadge, showToast, hideToast, showLoading, hideLoading },
     Config: { firebaseConfig },
   };
