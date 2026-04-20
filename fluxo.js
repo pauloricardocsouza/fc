@@ -1359,12 +1359,13 @@
     if (!text) { F.UI.showToast('Escreva um comentário', 'error'); return; }
     if (text.length > 1000) { F.UI.showToast('Comentário muito longo', 'error'); return; }
     if (!F.state.fbDB) { F.UI.showToast('Firebase não configurado', 'error'); return; }
+    if (!F.state.user?.uid) { F.UI.showToast('Sessão expirada. Faça login novamente.', 'error'); return; }
 
     const key = commentKeyFor(currentDetail.kind, currentDetail.dateKey, currentDetail.vendorName);
     const payload = {
-      author: F.state.user?.displayName || 'Anônimo',
-      authorUid: F.state.user?.uid || null,
-      authorEmail: F.state.user?.email || null,
+      author: F.state.user.displayName || F.state.user.email || 'Anônimo',
+      authorUid: F.state.user.uid,
+      authorEmail: F.state.user.email || null,
       text,
       createdAt: firebase.database.ServerValue.TIMESTAMP,
     };
@@ -1379,9 +1380,13 @@
   function deleteComment(commentId) {
     if (!currentDetail || !F.state.fbDB) return;
     const key = commentKeyFor(currentDetail.kind, currentDetail.dateKey, currentDetail.vendorName);
-    F.state.fbDB.ref(`filadelfia/comentarios/${key}/${commentId}`).remove()
+    // Usa soft-delete (marca deleted:true) em vez de remover, para preservar histórico
+    F.DB.deleteComment(key, commentId)
       .then(() => F.UI.showToast('Comentário excluído', 'success'))
-      .catch(() => F.UI.showToast('Erro ao excluir', 'error'));
+      .catch(err => {
+        console.error(err);
+        F.UI.showToast('Erro ao excluir: ' + (err?.message || ''), 'error');
+      });
   }
 
   /* ========== Export da grade ========== */

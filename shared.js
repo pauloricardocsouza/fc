@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v3.6';
+  const APP_VERSION = 'v3.7';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -213,8 +213,8 @@
 
       await ref.set({
         uid,
-        email: state.user.email,
-        displayName: state.user.displayName,
+        email: state.user.email || '',
+        displayName: state.user.displayName || state.user.email || 'Usuário',
         role,
         createdAt: firebase.database.ServerValue.TIMESTAMP,
         lastLoginAt: firebase.database.ServerValue.TIMESTAMP,
@@ -1203,18 +1203,19 @@
 
   // Lançamentos manuais
   async function createLancamento(data) {
+    if (!state.user?.uid) throw new Error('Sessão expirada. Faça login novamente.');
     const ref = dbRef('lancamentos').push();
     const payload = {
       ...data,
-      authorUid: state.user?.uid || null,
-      authorName: state.user?.displayName || state.user?.email || 'Anônimo',
-      authorEmail: state.user?.email || null,
+      authorUid: state.user.uid,
+      authorName: state.user.displayName || state.user.email || 'Anônimo',
+      authorEmail: state.user.email || null,
       createdAt: firebase.database.ServerValue.TIMESTAMP,
       updatedAt: firebase.database.ServerValue.TIMESTAMP,
     };
     await ref.set(payload);
     await auditLog('lancamento.created', 'lancamento', ref.key, {
-      tipo: data.tipo, valor: data.valor, nome: data.fornecedor || data.cliente || ''
+      tipo: data.tipo, valor: data.valor, nome: data.entidade || data.fornecedor || data.cliente || ''
     });
     return ref.key;
   }
@@ -1222,7 +1223,7 @@
     const payload = { ...data, updatedAt: firebase.database.ServerValue.TIMESTAMP };
     await dbRef(`lancamentos/${id}`).update(payload);
     await auditLog('lancamento.updated', 'lancamento', id, {
-      nome: data.fornecedor || data.cliente || ''
+      nome: data.entidade || data.fornecedor || data.cliente || ''
     });
   }
   async function deleteLancamento(id) {
@@ -1231,7 +1232,7 @@
     try {
       const snap = await dbRef(`lancamentos/${id}`).once('value');
       const v = snap.val();
-      if (v) info = { tipo: v.tipo, nome: v.fornecedor || v.cliente, valor: v.valor };
+      if (v) info = { tipo: v.tipo, nome: v.entidade || v.fornecedor || v.cliente, valor: v.valor };
     } catch {}
     await dbRef(`lancamentos/${id}`).remove();
     await auditLog('lancamento.deleted', 'lancamento', id, info);
@@ -1618,6 +1619,7 @@
   async function createSaldo(bankId, valor) {
     if (!state.fbDB) throw new Error('Firebase não configurado');
     if (!bankId) throw new Error('Banco inválido');
+    if (!state.user?.uid) throw new Error('Sessão expirada. Faça login novamente.');
     const val = parseFloat(valor);
     if (!Number.isFinite(val)) throw new Error('Valor inválido');
     const ref = dbRef('saldos_historico').push();
@@ -1626,8 +1628,8 @@
       bankId,
       valor: val,
       ts,
-      authorUid: state.user?.uid || null,
-      authorName: state.user?.displayName || state.user?.email || 'Anônimo',
+      authorUid: state.user.uid,
+      authorName: state.user.displayName || state.user.email || 'Anônimo',
       createdAt: firebase.database.ServerValue.TIMESTAMP,
     });
     await auditLog('saldo.created', 'saldo', ref.key, { bankId, valor: val });
