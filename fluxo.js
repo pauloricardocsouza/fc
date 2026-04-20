@@ -36,6 +36,10 @@
   let expandedReceber = false;   // total a receber expandido (só com manuais)
   let expandedPagarTotal = false; // total a pagar expandido em categorias
 
+  // Fase 3 — Saldos bancários
+  let bancos = {};               // { bankId: { nome, tipo, ordem, arquivado } }
+  let saldosHistorico = {};      // { eventId: { bankId, valor, ts, ... } }
+
   /* ========== Carga ========== */
   function loadLocalData() {
     dataStore = F.Storage.safeGetJSON(F.KEYS.DATA, null);
@@ -93,6 +97,18 @@
       fornecedorMap = data || {};
       if (processed) render();
     }));
+
+    // Fase 3 — bancos e saldos
+    unsubscribes.push(F.DB.subscribeBancos(data => {
+      bancos = data || {};
+      renderSaldosPanel();
+    }));
+    unsubscribes.push(F.DB.subscribeSaldosHistorico(data => {
+      saldosHistorico = data || {};
+      renderSaldosPanel();
+    }));
+    // Cria bancos padrão se for a primeira vez (só roda se for editor+)
+    F.DB.ensureDefaultBanks().catch(err => console.warn('Bancos padrão:', err));
 
     // Garante que a categoria nativa existe
     F.DB.ensureDefaultCategory().catch(err => console.warn('Categoria padrão:', err));
@@ -389,6 +405,20 @@
     });
     document.getElementById('btn-save').addEventListener('click', saveProvision);
     document.getElementById('btn-add-comment').addEventListener('click', addComment);
+
+    // Listeners da recorrência (Fase 5)
+    const recurCheck = document.getElementById('form-recurrence');
+    const recurOpts = document.getElementById('form-recurrence-options');
+    if (recurCheck && recurOpts) {
+      recurCheck.addEventListener('change', () => {
+        recurOpts.style.display = recurCheck.checked ? 'block' : 'none';
+        updateRecurrencePreview();
+      });
+    }
+    ['form-date', 'form-recurrence-freq', 'form-recurrence-end'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', updateRecurrencePreview);
+    });
 
     document.querySelectorAll('[data-close]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -806,8 +836,60 @@
     document.getElementById('form-value').value = '';
     document.getElementById('form-doc').value = '';
     document.getElementById('form-note').value = '';
+    // Reset recorrência
+    const recurCheck = document.getElementById('form-recurrence');
+    if (recurCheck) recurCheck.checked = false;
+    const recurOpts = document.getElementById('form-recurrence-options');
+    if (recurOpts) recurOpts.style.display = 'none';
+    const recurFreq = document.getElementById('form-recurrence-freq');
+    if (recurFreq) recurFreq.value = 'mensal';
+    const recurEnd = document.getElementById('form-recurrence-end');
+    if (recurEnd) {
+      // Default: 12 meses à frente
+      const dEnd = F.Dates.addDays(new Date(), 365);
+      recurEnd.value = F.Dates.dateKey(dEnd);
+    }
+    updateRecurrencePreview();
     document.getElementById('form-modal').classList.add('open');
     setTimeout(() => document.getElementById('form-entity').focus(), 100);
+  }
+
+  // Atualiza a prévia ao mudar campos
+  function updateRecurrencePreview() {
+    const preview = document.getElementById('form-recurrence-preview');
+    if (!preview) return;
+    const checked = document.getElementById('form-recurrence')?.checked;
+    if (!checked) return;
+    const startStr = document.getElementById('form-date')?.value;
+    const freq = document.getElementById('form-recurrence-freq')?.value || 'mensal';
+    const endStr = document.getElementById('form-recurrence-end')?.value;
+    if (!startStr || !endStr) { preview.innerHTML = 'Preencha a data de vencimento e a data final.'; return; }
+    const dates = generateRecurrenceDates(startStr, endStr, freq);
+    if (!dates.length) { preview.innerHTML = '<span style="color: var(--danger-text);">A data final é anterior à data inicial.</span>'; return; }
+    const count = dates.length;
+    const first = F.Fmt.fmtFullDate(F.Dates.parseDateKey(dates[0]));
+    const last = F.Fmt.fmtFullDate(F.Dates.parseDateKey(dates[dates.length - 1]));
+    preview.innerHTML = `Serão criados <b>${count} lançamento${count !== 1 ? 's' : ''}</b>, de ${F.escapeHTML(first)} a ${F.escapeHTML(last)}.`;
+  }
+
+  // Gera lista de datas (YYYY-MM-DD) desde startStr até endStr inclusive, seguindo a frequência
+  function generateRecurrenceDates(startStr, endStr, freq) {
+    const start = F.Dates.parseDateKey(startStr);
+    const end = F.Dates.parseDateKey(endStr);
+    if (!start || !end || end < start) return [];
+    const out = [];
+    let cur = new Date(start);
+    // Hard limit para evitar loops gigantes (10 anos de semanal = 520 = OK)
+    let safetyLimit = 600;
+    while (cur <= end && safetyLimit-- > 0) {
+      out.push(F.Dates.dateKey(cur));
+      if (freq === 'semanal') cur = F.Dates.addDays(cur, 7);
+      else if (freq === 'quinzenal') cur = F.Dates.addDays(cur, 14);
+      else if (freq === 'mensal') cur = new Date(cur.getFullYear(), cur.getMonth() + 1, cur.getDate());
+      else if (freq === 'anual') cur = new Date(cur.getFullYear() + 1, cur.getMonth(), cur.getDate());
+      else break;
+    }
+    return out;
   }
 
   async function saveProvision() {
@@ -817,6 +899,9 @@
     const valor = parseFloat(document.getElementById('form-value').value);
     const documento = document.getElementById('form-doc').value.trim();
     const nota = document.getElementById('form-note').value.trim();
+    const recurChecked = document.getElementById('form-recurrence')?.checked;
+    const recurFreq = document.getElementById('form-recurrence-freq')?.value || 'mensal';
+    const recurEnd = document.getElementById('form-recurrence-end')?.value;
 
     if (!entidade) { F.UI.showToast('Informe o fornecedor/cliente', 'error'); return; }
     if (!dateVal) { F.UI.showToast('Informe a data de vencimento', 'error'); return; }
@@ -831,11 +916,39 @@
 
     if (!F.DB.dbReady()) { F.UI.showToast('Firebase não está pronto. Verifique conexão.', 'error'); return; }
 
-    F.UI.showLoading('Salvando…');
+    // Se recorrência ativada, monta lista de datas
+    let datasParaCriar = [dateVal];
+    if (recurChecked) {
+      if (!recurEnd) { F.UI.showToast('Informe a data final da recorrência', 'error'); return; }
+      datasParaCriar = generateRecurrenceDates(dateVal, recurEnd, recurFreq);
+      if (!datasParaCriar.length) { F.UI.showToast('A data final deve ser posterior à inicial', 'error'); return; }
+      if (datasParaCriar.length > 200) {
+        if (!confirm(`Vão ser criados ${datasParaCriar.length} lançamentos. Continuar?`)) return;
+      }
+    }
+
+    F.UI.showLoading(recurChecked ? `Criando ${datasParaCriar.length} lançamentos…` : 'Salvando…');
     try {
-      await F.DB.createLancamento({ tipo, entidade, vencimento: dateVal, valor, documento, nota });
+      // Gera um seriesId único para agrupar todos os lançamentos da mesma recorrência
+      const seriesId = recurChecked
+        ? ('rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8))
+        : null;
+      let criados = 0;
+      for (const d of datasParaCriar) {
+        const payload = { tipo, entidade, vencimento: d, valor, documento, nota };
+        if (seriesId) {
+          payload.seriesId = seriesId;
+          payload.seriesFreq = recurFreq;
+        }
+        await F.DB.createLancamento(payload);
+        criados++;
+      }
       document.getElementById('form-modal').classList.remove('open');
-      F.UI.showToast('Lançamento manual criado', 'success');
+      if (recurChecked) {
+        F.UI.showToast(`${criados} lançamento${criados !== 1 ? 's' : ''} criado${criados !== 1 ? 's' : ''}`, 'success');
+      } else {
+        F.UI.showToast('Lançamento manual criado', 'success');
+      }
     } catch (err) {
       console.error(err);
       F.UI.showToast('Erro ao salvar: ' + err.message, 'error');
@@ -1561,6 +1674,374 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  /* ========================================================================
+     FASE 3 — PAINEL DE SALDOS BANCÁRIOS
+     ======================================================================== */
+
+  // Retorna a sigla curta (2-3 letras) para o badge do banco
+  function bankBadge(nome) {
+    const n = (nome || '').trim();
+    if (!n) return '?';
+    // Caso especial: bancos comuns
+    const map = {
+      'ABC': 'ABC', 'ITAU': 'IT', 'SAFRA': 'SA', 'BRADESCO': 'BR',
+      'CAIXA': 'CX', 'C6': 'C6', 'BANCO DO BRASIL': 'BB', 'SANTANDER': 'ST',
+      'ASA': 'AS', 'SOFISA': 'SO',
+    };
+    if (map[n]) return map[n];
+    // Se começa com "VINCULADA" ou "GARANTIDA", usar sigla do banco
+    const parts = n.split(/\s+/);
+    if (parts[0] === 'VINCULADA' || parts[0] === 'GARANTIDA') {
+      const base = parts.slice(1).join(' ');
+      if (map[base]) return '⦁' + map[base];
+      return parts[1] ? parts[1].slice(0, 2) : 'V';
+    }
+    // Fallback: primeiras 2 letras
+    return n.slice(0, 2);
+  }
+
+  // Render principal do painel de saldos
+  function renderSaldosPanel() {
+    const wrap = document.querySelector('.saldos-wrap');
+    if (!wrap) return;
+
+    // Se não tem bancos, esconde o painel todo (estado inicial, ainda não populou)
+    const bancosAtivos = Object.entries(bancos).filter(([id, b]) => b && !b.arquivado);
+    if (!bancosAtivos.length) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = '';
+
+    // Aplicar role guards (esconde "Nova conta" de viewers)
+    F.UI.applyRoleGuards(wrap);
+
+    // Saldos atuais (último lançamento de cada banco)
+    const atuais = F.DB.computeCurrentSaldos(saldosHistorico);
+
+    // Separa por tipo e ordena
+    const livres = bancosAtivos
+      .filter(([id, b]) => b.tipo === 'livre')
+      .sort(([idA, a], [idB, b]) => (a.ordem || 999) - (b.ordem || 999) || (a.nome || '').localeCompare(b.nome || ''));
+    const vinculadas = bancosAtivos
+      .filter(([id, b]) => b.tipo === 'vinculada')
+      .sort(([idA, a], [idB, b]) => (a.ordem || 999) - (b.ordem || 999) || (a.nome || '').localeCompare(b.nome || ''));
+
+    // Calcula totais por grupo
+    let totalLivre = 0, totalVinculada = 0;
+    let countLivreComSaldo = 0, countVincComSaldo = 0;
+    livres.forEach(([id]) => {
+      const s = atuais[id];
+      if (s) { totalLivre += s.valor; countLivreComSaldo++; }
+    });
+    vinculadas.forEach(([id]) => {
+      const s = atuais[id];
+      if (s) { totalVinculada += s.valor; countVincComSaldo++; }
+    });
+    const totalGeral = totalLivre + totalVinculada;
+
+    // Totalizadores
+    const setTotal = (elId, val) => {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      el.textContent = F.Fmt.fmtMoney(val);
+      el.classList.toggle('neg', val < 0);
+    };
+    setTotal('saldo-total-livre', totalLivre);
+    setTotal('saldo-total-vinculada', totalVinculada);
+    setTotal('saldo-total-geral', totalGeral);
+    const metaLivre = document.getElementById('saldo-total-livre-meta');
+    if (metaLivre) metaLivre.textContent = `${countLivreComSaldo} de ${livres.length} com saldo`;
+    const metaVinc = document.getElementById('saldo-total-vinculada-meta');
+    if (metaVinc) metaVinc.textContent = `${countVincComSaldo} de ${vinculadas.length} com saldo`;
+
+    // Listas
+    renderSaldoList('saldos-lista-livres', livres, atuais);
+    renderSaldoList('saldos-lista-vinculadas', vinculadas, atuais);
+  }
+
+  function renderSaldoList(elId, bancosList, atuais) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const canEdit = F.Auth.isEditor();
+    const isAdminUser = F.Auth.isAdmin();
+
+    if (!bancosList.length) {
+      el.innerHTML = '<div style="padding: 20px; color: var(--text-muted); font-size: 12px; text-align: center; font-style: italic;">Nenhum banco nesta categoria.</div>';
+      return;
+    }
+
+    el.innerHTML = bancosList.map(([id, b]) => {
+      const saldo = atuais[id];
+      const valorDisplay = saldo ? F.Fmt.fmtMoney(saldo.valor) : '— sem saldo —';
+      const valorClass = saldo ? (saldo.valor < 0 ? 'neg' : '') : 'empty';
+      const ts = saldo ? F.Fmt.fmtRelativeTime(saldo.ts) : 'nunca lançado';
+      const author = saldo ? ' · ' + F.escapeHTML(saldo.authorName || 'Anônimo') : '';
+      return `
+        <div class="saldo-item tipo-${F.escapeHTML(b.tipo)}" data-bank-id="${F.escapeHTML(id)}">
+          <div class="bank-badge" title="${F.escapeHTML(b.nome)}">${F.escapeHTML(bankBadge(b.nome))}</div>
+          <div class="bank-info">
+            <div class="bank-nome" title="${F.escapeHTML(b.nome)}">${F.escapeHTML(b.nome)}</div>
+            <div class="bank-ts">Atualizado ${F.escapeHTML(ts)}${author}</div>
+          </div>
+          <div class="bank-valor ${valorClass}" ${canEdit ? 'data-editable="true"' : ''} title="${canEdit ? 'Clique para editar' : 'Somente leitura'}">${F.escapeHTML(valorDisplay)}</div>
+          ${isAdminUser ? `<button class="bank-delete" data-delete-bank="${F.escapeHTML(id)}" title="Arquivar esta conta">×</button>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    // Handlers de edição inline
+    if (canEdit) {
+      el.querySelectorAll('[data-editable="true"]').forEach(cell => {
+        cell.addEventListener('click', () => startEditSaldo(cell));
+      });
+    }
+
+    // Handler de arquivamento (admin)
+    if (isAdminUser) {
+      el.querySelectorAll('[data-delete-bank]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const bankId = btn.dataset.deleteBank;
+          const banco = bancos[bankId];
+          if (!banco) return;
+          if (!confirm(`Arquivar a conta "${banco.nome}"?\n\nO histórico de saldos será preservado, mas a conta não aparecerá mais no painel.`)) return;
+          try {
+            await F.DB.deleteBank(bankId);
+            F.UI.showToast('Conta arquivada', 'success');
+          } catch (err) {
+            F.UI.showToast('Erro: ' + err.message, 'error');
+          }
+        });
+      });
+    }
+  }
+
+  function startEditSaldo(cell) {
+    if (cell.dataset.editing === 'true') return;
+    const item = cell.closest('.saldo-item');
+    if (!item) return;
+    const bankId = item.dataset.bankId;
+    const currentText = cell.textContent.trim();
+    // Extrair valor atual (se houver) para pre-fill
+    const match = currentText.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    const currentValue = parseFloat(match);
+    const preFill = Number.isFinite(currentValue) ? currentValue.toFixed(2).replace('.', ',') : '';
+
+    cell.dataset.editing = 'true';
+    const origClass = cell.className;
+    cell.innerHTML = `<input type="text" class="bank-valor-input" placeholder="0,00" value="${preFill}" inputmode="decimal" />`;
+    const input = cell.querySelector('input');
+    input.focus();
+    input.select();
+
+    let committed = false;
+
+    async function commit() {
+      if (committed) return;
+      committed = true;
+      const raw = input.value.trim();
+      cell.dataset.editing = 'false';
+      // Cancelar se vazio ou igual ao atual
+      if (!raw) {
+        renderSaldosPanel();
+        return;
+      }
+      // Parse "1.234,56" ou "1234.56" ou "1234,56"
+      const val = parseValueFlex(raw);
+      if (!Number.isFinite(val)) {
+        F.UI.showToast('Valor inválido', 'error');
+        renderSaldosPanel();
+        return;
+      }
+      try {
+        await F.DB.createSaldo(bankId, val);
+        F.UI.showToast('Saldo lançado', 'success');
+        // render acontece automaticamente via subscribe
+      } catch (err) {
+        F.UI.showToast('Erro: ' + err.message, 'error');
+        renderSaldosPanel();
+      }
+    }
+
+    function cancel() {
+      if (committed) return;
+      committed = true;
+      cell.dataset.editing = 'false';
+      renderSaldosPanel();
+    }
+
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    });
+  }
+
+  // Parser flexível: aceita "1.234,56", "1234.56", "1234,56", "1234", "-500"
+  function parseValueFlex(s) {
+    if (typeof s !== 'string') return NaN;
+    let str = s.trim();
+    if (!str) return NaN;
+    const neg = str.startsWith('-');
+    if (neg) str = str.slice(1);
+    // Remove R$ se houver
+    str = str.replace(/R\$\s*/i, '');
+    // Se tem vírgula e ponto: ponto = milhar, vírgula = decimal
+    if (str.includes(',') && str.includes('.')) {
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+      str = str.replace(',', '.');
+    }
+    // Se não tem separador decimal e tem mais de 2 dígitos no fim, assume que é inteiro
+    const n = parseFloat(str);
+    if (!Number.isFinite(n)) return NaN;
+    return neg ? -n : n;
+  }
+
+  /* ========== Modal: Histórico de saldos ========== */
+  function openSaldosHistorico() {
+    const modal = document.getElementById('saldos-historico-modal');
+    if (!modal) return;
+    modal.classList.add('open');
+    renderSaldosHistorico();
+    // Popular select
+    const sel = document.getElementById('saldos-hist-banco-filter');
+    if (sel) {
+      const bancosOrdenados = Object.entries(bancos)
+        .filter(([id, b]) => b)
+        .sort(([, a], [, b]) => (a.ordem || 999) - (b.ordem || 999));
+      sel.innerHTML = '<option value="">Todos os bancos</option>' +
+        bancosOrdenados.map(([id, b]) => `<option value="${F.escapeHTML(id)}">${F.escapeHTML(b.nome)}</option>`).join('');
+    }
+  }
+
+  function renderSaldosHistorico() {
+    const tbody = document.getElementById('saldos-hist-tbody');
+    if (!tbody) return;
+    const filtro = document.getElementById('saldos-hist-banco-filter')?.value || '';
+    let entries = Object.entries(saldosHistorico)
+      .map(([id, v]) => ({ id, ...v }))
+      .filter(e => e && e.bankId);
+    if (filtro) entries = entries.filter(e => e.bankId === filtro);
+    entries.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+    document.getElementById('saldos-hist-sub').textContent =
+      `${entries.length} lançamento${entries.length !== 1 ? 's' : ''}`;
+
+    if (!entries.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="hist-empty">Nenhum lançamento registrado</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = entries.map(e => {
+      const banco = bancos[e.bankId];
+      const nomeBanco = banco ? banco.nome : `(conta removida: ${e.bankId})`;
+      const when = F.Fmt.fmtDateTimeFull(new Date(e.ts || 0));
+      const valorClass = e.valor < 0 ? 'hist-valor neg' : 'hist-valor';
+      return `
+        <tr>
+          <td style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); white-space: nowrap;">${F.escapeHTML(when)}</td>
+          <td><b>${F.escapeHTML(nomeBanco)}</b></td>
+          <td class="${valorClass}">${F.Fmt.fmtMoney(e.valor)}</td>
+          <td style="font-size: 11.5px;">${F.escapeHTML(e.authorName || '—')}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function closeSaldosHistorico() {
+    const modal = document.getElementById('saldos-historico-modal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  /* ========== Modal: Nova conta bancária ========== */
+  function openNovoBanco() {
+    if (!F.Auth.isEditor()) {
+      F.UI.showToast('Apenas editores e admins podem criar contas', 'warning');
+      return;
+    }
+    const modal = document.getElementById('novo-banco-modal');
+    if (!modal) return;
+    modal.classList.add('open');
+    const nomeInput = document.getElementById('novo-banco-nome');
+    const tipoSel = document.getElementById('novo-banco-tipo');
+    if (nomeInput) { nomeInput.value = ''; nomeInput.focus(); }
+    if (tipoSel) tipoSel.value = 'livre';
+  }
+
+  function closeNovoBanco() {
+    const modal = document.getElementById('novo-banco-modal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  async function salvarNovoBanco() {
+    const nome = (document.getElementById('novo-banco-nome')?.value || '').trim().toUpperCase();
+    const tipo = document.getElementById('novo-banco-tipo')?.value || 'livre';
+    if (!nome) {
+      F.UI.showToast('Informe o nome do banco', 'warning');
+      return;
+    }
+    // Evita duplicata pelo nome
+    const duplicate = Object.values(bancos).find(b => b && b.nome === nome && !b.arquivado);
+    if (duplicate) {
+      F.UI.showToast('Já existe uma conta com esse nome', 'warning');
+      return;
+    }
+    try {
+      F.UI.showLoading('Criando conta…');
+      // Define ordem: 999 + número de contas do tipo (adiciona ao fim)
+      const countSameType = Object.values(bancos).filter(b => b && b.tipo === tipo && !b.arquivado).length;
+      const ordem = (tipo === 'vinculada' ? 400 : 200) + countSameType;
+      await F.DB.createBank(nome, tipo, ordem);
+      F.UI.showToast('Conta criada', 'success');
+      closeNovoBanco();
+    } catch (err) {
+      F.UI.showToast('Erro: ' + err.message, 'error');
+    } finally {
+      F.UI.hideLoading();
+    }
+  }
+
+  /* ========== Setup dos handlers de saldos (chamado no init) ========== */
+  function setupSaldosHandlers() {
+    document.getElementById('btn-saldos-historico')?.addEventListener('click', openSaldosHistorico);
+    document.getElementById('btn-saldos-novo-banco')?.addEventListener('click', openNovoBanco);
+    document.getElementById('btn-salvar-novo-banco')?.addEventListener('click', salvarNovoBanco);
+    document.getElementById('saldos-hist-banco-filter')?.addEventListener('change', renderSaldosHistorico);
+
+    // Fechar modais
+    document.querySelectorAll('[data-close="saldos-historico"]').forEach(el => {
+      el.addEventListener('click', closeSaldosHistorico);
+    });
+    document.querySelectorAll('[data-close="novo-banco"]').forEach(el => {
+      el.addEventListener('click', closeNovoBanco);
+    });
+    // Fechar ao clicar fora do modal (no overlay)
+    document.getElementById('saldos-historico-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'saldos-historico-modal') closeSaldosHistorico();
+    });
+    document.getElementById('novo-banco-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'novo-banco-modal') closeNovoBanco();
+    });
+
+    // ESC fecha modais
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const histOpen = document.getElementById('saldos-historico-modal')?.classList.contains('open');
+      const novoOpen = document.getElementById('novo-banco-modal')?.classList.contains('open');
+      if (histOpen) closeSaldosHistorico();
+      if (novoOpen) closeNovoBanco();
+    });
+  }
+
+  // Chama setup dos handlers quando DOM estiver pronto (complementar ao init principal)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupSaldosHandlers);
+  } else {
+    setupSaldosHandlers();
   }
 
   document.addEventListener('DOMContentLoaded', init);

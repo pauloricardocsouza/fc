@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v2.9';
+  const APP_VERSION = 'v3.1';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -89,12 +89,13 @@
           uid: 'demo',
           email: 'demo@local',
           displayName: localStorage.getItem(KEYS.AUTHOR) || 'Demo',
+          role: 'admin',
           isDemo: true,
         };
         resolve(state.user);
         return;
       }
-      state.fbAuth.onAuthStateChanged((fbUser) => {
+      state.fbAuth.onAuthStateChanged(async (fbUser) => {
         if (!fbUser) {
           const returnTo = encodeURIComponent(location.pathname.split('/').pop() || 'index.html');
           location.href = 'login.html?return=' + returnTo;
@@ -104,9 +105,16 @@
           uid: fbUser.uid,
           email: fbUser.email,
           displayName: fbUser.displayName || fbUser.email.split('@')[0],
+          role: 'editor', // padrão temporário até carregar o real
         };
         try { localStorage.setItem(KEYS.AUTHOR, state.user.displayName); } catch {}
         try { sessionStorage.setItem(KEYS.SESSION_USER, JSON.stringify(state.user)); } catch {}
+        // Garante registro em /usuarios e carrega o role
+        try {
+          await ensureUserRecord();
+        } catch (err) {
+          console.warn('ensureUserRecord falhou:', err);
+        }
         resolve(state.user);
       });
     });
@@ -124,6 +132,12 @@
       } else {
         try { localStorage.removeItem(KEYS.REMEMBER_LOGIN); } catch {}
       }
+      // Registra login (best-effort)
+      try {
+        state.user = { uid: cred.user.uid, email: cred.user.email, displayName: cred.user.displayName || email.split('@')[0] };
+        await ensureUserRecord();
+        await auditLog('auth.login', 'session', cred.user.uid, { email });
+      } catch {}
       return cred.user;
     } catch (err) {
       throw translateAuthError(err);
@@ -131,6 +145,8 @@
   }
 
   async function logout() {
+    // Registra logout antes de sair (best-effort, não bloqueia)
+    try { await auditLog('auth.logout', 'session', state.user?.uid || null, {}); } catch {}
     try { sessionStorage.removeItem(KEYS.SESSION_USER); } catch {}
     if (state.fbAuth) await state.fbAuth.signOut();
     location.href = 'login.html';
@@ -150,6 +166,192 @@
     const e = new Error(msg);
     e.code = err.code;
     return e;
+  }
+
+  /* ========== Perfis de acesso (Roles) ==========
+     3 níveis:
+     - admin: pode tudo (config do sistema, gerenciar usuários, ver auditoria)
+     - editor: CRUD de dados (lançamentos, comentários, categorias, saldos, importar)
+     - viewer: só leitura
+
+     Primeiro usuário que abre o sistema e não encontra NENHUM admin
+     se promove automaticamente a admin (bootstrap inicial).
+     ================================================ */
+  const ROLE_ADMIN = 'admin';
+  const ROLE_EDITOR = 'editor';
+  const ROLE_VIEWER = 'viewer';
+
+  // Hierarquia: admin > editor > viewer. Um role "tem permissão" se for maior ou igual.
+  const ROLE_WEIGHT = { admin: 3, editor: 2, viewer: 1 };
+
+  async function ensureUserRecord() {
+    if (!state.user || state.user.isDemo) return;
+    if (!state.fbDB) return;
+    const uid = state.user.uid;
+    const ref = state.fbDB.ref(`filadelfia/usuarios/${uid}`);
+    const snap = await ref.once('value');
+    const existing = snap.val();
+
+    if (!existing) {
+      // Primeiro acesso: verifica se JÁ existe algum admin no sistema
+      const allSnap = await state.fbDB.ref('filadelfia/usuarios').once('value');
+      const all = allSnap.val() || {};
+      const hasAnyAdmin = Object.values(all).some(u => u && u.role === ROLE_ADMIN);
+      const role = hasAnyAdmin ? ROLE_EDITOR : ROLE_ADMIN; // bootstrap: primeiro vira admin
+
+      await ref.set({
+        uid,
+        email: state.user.email,
+        displayName: state.user.displayName,
+        role,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        lastLoginAt: firebase.database.ServerValue.TIMESTAMP,
+      });
+      state.user.role = role;
+      if (role === ROLE_ADMIN) {
+        try { await auditLog('user.bootstrap_admin', 'user', uid, { email: state.user.email }); } catch {}
+      }
+    } else {
+      state.user.role = existing.role || ROLE_EDITOR;
+      state.user.displayName = existing.displayName || state.user.displayName;
+      // Atualiza lastLoginAt (best-effort, não bloqueia)
+      ref.update({ lastLoginAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+    }
+  }
+
+  // Verifica se o usuário atual tem permissão para um role mínimo
+  function hasRole(minRole) {
+    const current = state.user?.role || ROLE_VIEWER;
+    return (ROLE_WEIGHT[current] || 0) >= (ROLE_WEIGHT[minRole] || 0);
+  }
+
+  function isAdmin() { return hasRole(ROLE_ADMIN); }
+  function isEditor() { return hasRole(ROLE_EDITOR); }
+  function isViewer() { return !!state.user; } // qualquer autenticado é pelo menos viewer
+
+  // Gerenciamento de usuários (chamado pela página de configurações)
+  async function listUsers() {
+    if (!state.fbDB) return [];
+    const snap = await state.fbDB.ref('filadelfia/usuarios').once('value');
+    const val = snap.val() || {};
+    return Object.values(val).sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+  }
+
+  async function updateUserRole(uid, newRole) {
+    if (!isAdmin()) throw new Error('Apenas administradores podem alterar perfis');
+    if (![ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER].includes(newRole)) {
+      throw new Error('Perfil inválido');
+    }
+    // Proteção: não permite remover o último admin
+    if (newRole !== ROLE_ADMIN) {
+      const users = await listUsers();
+      const admins = users.filter(u => u.role === ROLE_ADMIN);
+      if (admins.length === 1 && admins[0].uid === uid) {
+        throw new Error('Não é possível remover o último administrador do sistema');
+      }
+    }
+    await state.fbDB.ref(`filadelfia/usuarios/${uid}/role`).set(newRole);
+    await auditLog('user.role_changed', 'user', uid, { newRole });
+  }
+
+  /* ========== Trilha de auditoria (Audit) ==========
+     Registra ações relevantes em /filadelfia/audit com retenção de 60 dias.
+     Formato: { action, actorUid, actorName, targetType, targetId, details, ts }
+
+     Ações registradas:
+     - auth.login, auth.logout
+     - user.bootstrap_admin, user.role_changed
+     - import.applied, import.rollback
+     - lancamento.created, lancamento.updated, lancamento.deleted
+     - title.hidden, title.restored
+     - comment.created, comment.deleted, comment.restored, comment.purged
+     - category.created, category.updated, category.deleted
+     - fornecedor.categorized
+     - saldo.created (fase 3)
+     - bank.created, bank.deleted (fase 3)
+     - backup.downloaded, backup.restored (fase 4)
+     - config.updated
+     ================================================ */
+  const AUDIT_RETENTION_DAYS = 60;
+
+  async function auditLog(action, targetType, targetId, details) {
+    try {
+      if (!state.fbDB || !state.user || state.user.isDemo) return;
+      const actorUid = state.user.uid;
+      const actorName = state.user.displayName || state.user.email || 'Anônimo';
+      await state.fbDB.ref('filadelfia/audit').push({
+        action,
+        actorUid,
+        actorName,
+        targetType: targetType || null,
+        targetId: targetId || null,
+        details: details || {},
+        ts: firebase.database.ServerValue.TIMESTAMP,
+      });
+    } catch (err) {
+      console.warn('auditLog falhou:', err);
+    }
+  }
+
+  // Consulta auditoria (para a página de configurações)
+  async function fetchAuditEntries({ limit = 200, since = null } = {}) {
+    if (!state.fbDB) return [];
+    let ref = state.fbDB.ref('filadelfia/audit').orderByChild('ts');
+    if (since) ref = ref.startAt(since);
+    ref = ref.limitToLast(limit);
+    const snap = await ref.once('value');
+    const val = snap.val() || {};
+    return Object.entries(val)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  }
+
+  // Limpeza automática: remove entradas mais antigas que o período de retenção.
+  // Chamada ocasionalmente (ex: quando admin abre página de configurações).
+  async function cleanupAuditLog() {
+    if (!state.fbDB || !isAdmin()) return 0;
+    const cutoff = Date.now() - (AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    const snap = await state.fbDB.ref('filadelfia/audit').orderByChild('ts').endAt(cutoff).once('value');
+    const val = snap.val() || {};
+    const updates = {};
+    Object.keys(val).forEach(id => { updates[id] = null; });
+    if (Object.keys(updates).length) {
+      await state.fbDB.ref('filadelfia/audit').update(updates);
+    }
+    return Object.keys(updates).length;
+  }
+
+  // Traduz o código da ação para descrição amigável
+  const AUDIT_ACTION_LABELS = {
+    'auth.login': 'Fez login',
+    'auth.logout': 'Saiu do sistema',
+    'user.bootstrap_admin': 'Primeiro administrador cadastrado',
+    'user.role_changed': 'Alterou perfil de usuário',
+    'import.applied': 'Importou relatório SIA',
+    'import.rollback': 'Restaurou importação anterior',
+    'lancamento.created': 'Criou lançamento manual',
+    'lancamento.updated': 'Editou lançamento manual',
+    'lancamento.deleted': 'Excluiu lançamento manual',
+    'title.hidden': 'Ocultou título importado',
+    'title.restored': 'Restaurou título oculto',
+    'comment.created': 'Criou comentário',
+    'comment.deleted': 'Excluiu comentário',
+    'comment.restored': 'Restaurou comentário',
+    'comment.purged': 'Apagou comentário definitivamente',
+    'category.created': 'Criou categoria',
+    'category.updated': 'Editou categoria',
+    'category.deleted': 'Excluiu categoria',
+    'fornecedor.categorized': 'Atribuiu fornecedor a categoria',
+    'saldo.created': 'Lançou saldo bancário',
+    'bank.created': 'Criou conta bancária',
+    'bank.deleted': 'Removeu conta bancária',
+    'backup.downloaded': 'Baixou backup do sistema',
+    'backup.restored': 'Restaurou backup',
+    'config.updated': 'Alterou configurações',
+  };
+
+  function auditActionLabel(action) {
+    return AUDIT_ACTION_LABELS[action] || action;
   }
 
   /* ========== Feriados e regras bancárias ========== */
@@ -368,7 +570,7 @@
   function renderTopbar(activePage) {
     const topbar = document.querySelector('.topbar');
     if (!topbar) return;
-    const u = state.user || { displayName: 'Visitante', email: '' };
+    const u = state.user || { displayName: 'Visitante', email: '', role: 'viewer' };
     const initials = (u.displayName || u.email || 'U')
       .split(/\s+/)
       .map(s => s[0])
@@ -376,6 +578,16 @@
       .slice(0, 2)
       .join('')
       .toUpperCase();
+
+    // Badge do perfil
+    const roleLabels = { admin: 'ADMIN', editor: 'EDITOR', viewer: 'VIEWER' };
+    const roleLabel = roleLabels[u.role] || 'EDITOR';
+    const roleClass = 'role-' + (u.role || 'editor');
+
+    // Link para Configurações só aparece para admin
+    const configLink = isAdmin()
+      ? `<a href="configuracoes.html" ${activePage === 'configuracoes' ? 'class="active"' : ''}>Configurações</a>`
+      : '';
 
     topbar.innerHTML = `
       <a class="brand" href="index.html">
@@ -392,6 +604,7 @@
         <a href="comentarios.html" ${activePage === 'comentarios' ? 'class="active"' : ''}>Comentários</a>
         <a href="categorias.html" ${activePage === 'categorias' ? 'class="active"' : ''}>Categorias</a>
         <a href="processamento.html" ${activePage === 'processamento' ? 'class="active"' : ''}>Processamento</a>
+        ${configLink}
       </nav>
       <div class="topbar-meta">
         <div class="sync-badge" id="sync-badge" title="Status de sincronização">
@@ -401,11 +614,13 @@
         <div class="user-chip" id="user-chip">
           <button class="avatar" id="user-avatar-btn" title="${escapeHTML(u.email)}" aria-label="Menu do usuário">${escapeHTML(initials)}</button>
           <span class="name-hide-mobile">${escapeHTML(u.displayName)}</span>
+          <span class="role-badge ${roleClass} name-hide-mobile" title="Perfil de acesso">${roleLabel}</span>
           <button id="btn-logout" class="name-hide-mobile" title="Sair">Sair</button>
           <div class="user-dropdown" id="user-dropdown" hidden>
             <div class="user-dropdown-info">
               <div class="user-dropdown-name">${escapeHTML(u.displayName || '')}</div>
               <div class="user-dropdown-email">${escapeHTML(u.email || '')}</div>
+              <div class="user-dropdown-role ${roleClass}">${roleLabel}</div>
             </div>
             <button id="btn-logout-mobile" class="user-dropdown-logout">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -461,6 +676,379 @@
         }
       });
     }
+
+    // Fase 6 — garantir que modal de busca global e atalhos estão prontos
+    ensureSearchModal();
+    setupKeyboardShortcuts();
+  }
+
+  /* ========== Fase 6: Busca global e atalhos ==========
+     Busca em fornecedores, clientes, categorias, bancos, lançamentos, comentários.
+     Ativada por Ctrl+K (desktop) ou Cmd+K (Mac).
+     ================================================ */
+  function ensureSearchModal() {
+    if (document.getElementById('global-search-modal')) return; // já existe
+    const modal = document.createElement('div');
+    modal.id = 'global-search-modal';
+    modal.className = 'global-search-modal';
+    modal.setAttribute('hidden', '');
+    modal.innerHTML = `
+      <div class="gs-backdrop"></div>
+      <div class="gs-panel">
+        <div class="gs-input-wrap">
+          <span class="gs-icon">🔍</span>
+          <input type="text" id="global-search-input" class="gs-input" placeholder="Buscar em tudo — fornecedores, lançamentos, comentários, bancos…" />
+          <span class="gs-kbd">esc</span>
+        </div>
+        <div class="gs-results" id="global-search-results">
+          <div class="gs-empty">Digite para começar a buscar</div>
+        </div>
+        <div class="gs-footer">
+          <span><kbd>↑↓</kbd> navegar</span>
+          <span><kbd>↵</kbd> abrir</span>
+          <span><kbd>esc</kbd> fechar</span>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const input = modal.querySelector('#global-search-input');
+    const resultsEl = modal.querySelector('#global-search-results');
+
+    let currentResults = [];
+    let selectedIndex = 0;
+
+    input.addEventListener('input', debounce(async () => {
+      const q = input.value.trim().toLowerCase();
+      if (!q) {
+        resultsEl.innerHTML = '<div class="gs-empty">Digite para começar a buscar</div>';
+        currentResults = [];
+        return;
+      }
+      currentResults = await performGlobalSearch(q);
+      renderSearchResults(resultsEl, currentResults, q);
+      selectedIndex = 0;
+      updateSelectedResult(resultsEl, selectedIndex);
+    }, 150));
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (currentResults.length) {
+          selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
+          updateSelectedResult(resultsEl, selectedIndex);
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, 0);
+        updateSelectedResult(resultsEl, selectedIndex);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const r = currentResults[selectedIndex];
+        if (r) {
+          closeGlobalSearch();
+          if (r.url) location.href = r.url;
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeGlobalSearch();
+      }
+    });
+
+    modal.querySelector('.gs-backdrop').addEventListener('click', closeGlobalSearch);
+  }
+
+  function openGlobalSearch() {
+    const modal = document.getElementById('global-search-modal');
+    if (!modal) return;
+    modal.removeAttribute('hidden');
+    const input = modal.querySelector('#global-search-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    const resultsEl = modal.querySelector('#global-search-results');
+    if (resultsEl) resultsEl.innerHTML = '<div class="gs-empty">Digite para começar a buscar</div>';
+  }
+
+  function closeGlobalSearch() {
+    const modal = document.getElementById('global-search-modal');
+    if (modal) modal.setAttribute('hidden', '');
+  }
+
+  async function performGlobalSearch(q) {
+    const results = [];
+    try {
+      // 1. Fornecedores e clientes (via dados_importados local ou Firebase)
+      const dataLocal = safeGetJSON(KEYS.DATA, null);
+      if (dataLocal) {
+        const seen = new Set();
+        (dataLocal.titulosPagar || []).forEach(t => {
+          if (!t.fornecedor) return;
+          const key = t.fornecedor.toUpperCase();
+          if (seen.has('F:' + key)) return;
+          seen.add('F:' + key);
+          if (key.toLowerCase().includes(q)) {
+            results.push({
+              type: 'fornecedor',
+              typeLabel: 'Fornecedor',
+              title: t.fornecedor,
+              description: `Clique para ver no fluxo`,
+              url: `index.html`,
+              icon: '🏢',
+            });
+          }
+        });
+        (dataLocal.titulosReceber || []).forEach(t => {
+          if (!t.cliente) return;
+          const key = t.cliente.toUpperCase();
+          if (seen.has('C:' + key)) return;
+          seen.add('C:' + key);
+          if (key.toLowerCase().includes(q)) {
+            results.push({
+              type: 'cliente',
+              typeLabel: 'Cliente',
+              title: t.cliente,
+              description: `Contas a receber`,
+              url: `index.html`,
+              icon: '👤',
+            });
+          }
+        });
+      }
+
+      if (!state.fbDB) return results.slice(0, 30);
+
+      // 2. Categorias
+      try {
+        const snap = await dbRef('categorias').once('value');
+        const cats = snap.val() || {};
+        Object.entries(cats).forEach(([id, c]) => {
+          if (c && (c.nome || '').toLowerCase().includes(q)) {
+            results.push({
+              type: 'categoria',
+              typeLabel: 'Categoria',
+              title: c.nome,
+              description: 'Gerenciar fornecedores desta categoria',
+              url: `categorias.html`,
+              icon: '🏷️',
+            });
+          }
+        });
+      } catch {}
+
+      // 3. Bancos
+      try {
+        const snap = await dbRef('bancos').once('value');
+        const banks = snap.val() || {};
+        Object.entries(banks).forEach(([id, b]) => {
+          if (b && !b.arquivado && (b.nome || '').toLowerCase().includes(q)) {
+            results.push({
+              type: 'banco',
+              typeLabel: 'Banco',
+              title: b.nome,
+              description: b.tipo === 'vinculada' ? 'Conta vinculada / garantida' : 'Conta livre',
+              url: `index.html`,
+              icon: '🏦',
+            });
+          }
+        });
+      } catch {}
+
+      // 4. Lançamentos manuais
+      try {
+        const snap = await dbRef('lancamentos').once('value');
+        const lancs = snap.val() || {};
+        Object.entries(lancs).forEach(([id, l]) => {
+          if (!l) return;
+          const hay = ((l.entidade || '') + ' ' + (l.documento || '') + ' ' + (l.nota || '')).toLowerCase();
+          if (hay.includes(q)) {
+            results.push({
+              type: 'lancamento',
+              typeLabel: 'Lançamento',
+              title: l.entidade || '(sem nome)',
+              description: `${l.tipo === 'pagar' ? '↓' : '↑'} ${l.documento ? 'Doc ' + l.documento + ' · ' : ''}venc. ${l.vencimento}`,
+              url: `lancamentos.html`,
+              icon: '🧾',
+            });
+          }
+        });
+      } catch {}
+
+      // 5. Comentários (só ativos)
+      try {
+        const snap = await dbRef('comentarios').once('value');
+        const cells = snap.val() || {};
+        Object.entries(cells).forEach(([cellKey, commentsMap]) => {
+          Object.entries(commentsMap || {}).forEach(([cid, c]) => {
+            if (c && !c.deleted && (c.text || '').toLowerCase().includes(q)) {
+              const snippet = (c.text || '').slice(0, 80);
+              results.push({
+                type: 'comentario',
+                typeLabel: 'Comentário',
+                title: `"${snippet}${c.text.length > 80 ? '…' : ''}"`,
+                description: `Por ${c.author || 'Anônimo'}`,
+                url: `comentarios.html`,
+                icon: '💬',
+              });
+            }
+          });
+        });
+      } catch {}
+
+    } catch (err) {
+      console.warn('Busca falhou:', err);
+    }
+    return results.slice(0, 40);
+  }
+
+  function renderSearchResults(el, results, query) {
+    if (!results.length) {
+      el.innerHTML = `<div class="gs-empty">Nenhum resultado para "<b>${escapeHTML(query)}</b>"</div>`;
+      return;
+    }
+    // Agrupa por tipo
+    const groups = {};
+    results.forEach(r => {
+      if (!groups[r.typeLabel]) groups[r.typeLabel] = [];
+      groups[r.typeLabel].push(r);
+    });
+    let i = 0;
+    const html = Object.entries(groups).map(([label, items]) => {
+      const rows = items.map(r => {
+        const idx = i++;
+        return `
+          <div class="gs-result" data-idx="${idx}">
+            <span class="gs-result-ic">${r.icon}</span>
+            <div class="gs-result-main">
+              <div class="gs-result-title">${escapeHTML(r.title)}</div>
+              <div class="gs-result-desc">${escapeHTML(r.description || '')}</div>
+            </div>
+            <span class="gs-result-tag">${escapeHTML(r.typeLabel)}</span>
+          </div>
+        `;
+      }).join('');
+      return `
+        <div class="gs-section">
+          <div class="gs-section-title">${escapeHTML(label)}S · ${items.length}</div>
+          ${rows}
+        </div>
+      `;
+    }).join('');
+    el.innerHTML = html;
+
+    // Click handler
+    el.querySelectorAll('.gs-result').forEach(row => {
+      row.addEventListener('click', () => {
+        const idx = parseInt(row.dataset.idx, 10);
+        const r = results[idx];
+        if (r && r.url) {
+          closeGlobalSearch();
+          location.href = r.url;
+        }
+      });
+      row.addEventListener('mouseenter', () => {
+        const idx = parseInt(row.dataset.idx, 10);
+        updateSelectedResult(el, idx);
+      });
+    });
+  }
+
+  function updateSelectedResult(el, idx) {
+    el.querySelectorAll('.gs-result').forEach(r => r.classList.remove('active'));
+    const target = el.querySelector(`.gs-result[data-idx="${idx}"]`);
+    if (target) {
+      target.classList.add('active');
+      target.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function debounce(fn, wait) {
+    let t;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(null, args), wait);
+    };
+  }
+
+  // Atalhos de teclado
+  let _shortcutsSetup = false;
+  function setupKeyboardShortcuts() {
+    if (_shortcutsSetup) return;
+    _shortcutsSetup = true;
+
+    document.addEventListener('keydown', (e) => {
+      // Ignora se estiver em input/textarea (exceto Ctrl+K e ? que vêm de modal)
+      const inField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && !e.target.closest('#global-search-modal');
+
+      // Ctrl/Cmd + K — busca global
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openGlobalSearch();
+        return;
+      }
+
+      if (inField) return;
+
+      // ? — mostrar ajuda de atalhos
+      if (e.key === '?' && !e.shiftKey) {
+        // já sai do if porque ? normalmente requer shift em PT-BR, mas tentamos ambos
+      }
+      if (e.key === '?') {
+        e.preventDefault();
+        showShortcutsHelp();
+        return;
+      }
+
+      // Navegação por tecla única
+      const key = e.key.toLowerCase();
+      if (key === 'n') { e.preventDefault(); const b = document.getElementById('btn-add-empty') || document.getElementById('btn-new-lanc') || document.querySelector('[data-shortcut="new"]'); if (b) b.click(); return; }
+      if (key === 'i') { e.preventDefault(); location.href = 'processamento.html'; return; }
+      if (key === 'd') { e.preventDefault(); location.href = 'dashboard.html'; return; }
+      if (key === 'f') { e.preventDefault(); location.href = 'index.html'; return; }
+    });
+  }
+
+  function showShortcutsHelp() {
+    // Modal simples com atalhos disponíveis
+    let overlay = document.getElementById('shortcuts-help-modal');
+    if (overlay) { overlay.removeAttribute('hidden'); return; }
+    overlay = document.createElement('div');
+    overlay.id = 'shortcuts-help-modal';
+    overlay.className = 'global-search-modal';
+    overlay.innerHTML = `
+      <div class="gs-backdrop"></div>
+      <div class="gs-panel" style="max-height: 500px;">
+        <div class="gs-input-wrap" style="pointer-events: none;">
+          <span class="gs-icon">⌨️</span>
+          <div class="gs-input" style="padding: 0; line-height: 1.2;">
+            <div style="font-weight: 700; font-size: 15px;">Atalhos de teclado</div>
+            <div style="font-size: 12px; color: #9aa3b2; margin-top: 2px;">Pressione as teclas em qualquer página</div>
+          </div>
+        </div>
+        <div class="gs-results">
+          <div class="gs-section">
+            <div class="gs-section-title">NAVEGAÇÃO</div>
+            <div class="shortcut-row"><kbd>F</kbd><span>Fluxo de caixa</span></div>
+            <div class="shortcut-row"><kbd>D</kbd><span>Dashboard</span></div>
+            <div class="shortcut-row"><kbd>I</kbd><span>Importação (processamento)</span></div>
+          </div>
+          <div class="gs-section">
+            <div class="gs-section-title">AÇÕES</div>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>K</kbd><span>Buscar em tudo</span></div>
+            <div class="shortcut-row"><kbd>N</kbd><span>Novo lançamento</span></div>
+            <div class="shortcut-row"><kbd>?</kbd><span>Esta tela de ajuda</span></div>
+            <div class="shortcut-row"><kbd>Esc</kbd><span>Fechar modais</span></div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = () => overlay.setAttribute('hidden', '');
+    overlay.querySelector('.gs-backdrop').addEventListener('click', close);
+    document.addEventListener('keydown', function onceEsc(e) {
+      if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onceEsc); }
+    });
   }
 
   // Busca metadados do Firebase para atualizar o tooltip do sync badge
@@ -596,14 +1184,28 @@
       updatedAt: firebase.database.ServerValue.TIMESTAMP,
     };
     await ref.set(payload);
+    await auditLog('lancamento.created', 'lancamento', ref.key, {
+      tipo: data.tipo, valor: data.valor, nome: data.fornecedor || data.cliente || ''
+    });
     return ref.key;
   }
   async function updateLancamento(id, data) {
     const payload = { ...data, updatedAt: firebase.database.ServerValue.TIMESTAMP };
     await dbRef(`lancamentos/${id}`).update(payload);
+    await auditLog('lancamento.updated', 'lancamento', id, {
+      nome: data.fornecedor || data.cliente || ''
+    });
   }
   async function deleteLancamento(id) {
+    // Captura info antes de deletar, para registrar no log
+    let info = {};
+    try {
+      const snap = await dbRef(`lancamentos/${id}`).once('value');
+      const v = snap.val();
+      if (v) info = { tipo: v.tipo, nome: v.fornecedor || v.cliente, valor: v.valor };
+    } catch {}
     await dbRef(`lancamentos/${id}`).remove();
+    await auditLog('lancamento.deleted', 'lancamento', id, info);
   }
   function subscribeLancamentos(callback) {
     if (!state.fbDB) { callback({}); return () => {}; }
@@ -621,9 +1223,14 @@
       deletedByName: state.user?.displayName || state.user?.email || 'Anônimo',
       deletedAt: firebase.database.ServerValue.TIMESTAMP,
     });
+    await auditLog('title.hidden', 'title', titleId, {
+      fornecedor: titleData?.fornecedor || titleData?.cliente || '',
+      valor: titleData?.valor,
+    });
   }
   async function restoreTitle(titleId) {
     await dbRef(`deletados/${titleId}`).remove();
+    await auditLog('title.restored', 'title', titleId, {});
   }
   function subscribeHiddenTitles(callback) {
     if (!state.fbDB) { callback({}); return () => {}; }
@@ -657,23 +1264,27 @@
 
   async function createCategoria(nome, cor) {
     const id = 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const nomeNorm = String(nome).trim().toUpperCase();
     await dbRef(`categorias/${id}`).set({
-      nome: String(nome).trim().toUpperCase(),
+      nome: nomeNorm,
       cor: cor || '#6b7280',
       nativa: false,
       createdBy: state.user?.uid || null,
       createdByName: state.user?.displayName || state.user?.email || 'Anônimo',
       createdAt: firebase.database.ServerValue.TIMESTAMP,
     });
+    await auditLog('category.created', 'category', id, { nome: nomeNorm, cor });
     return id;
   }
   async function updateCategoria(id, data) {
     const payload = { ...data };
     if (payload.nome) payload.nome = String(payload.nome).trim().toUpperCase();
     await dbRef(`categorias/${id}`).update(payload);
+    await auditLog('category.updated', 'category', id, { nome: payload.nome || null });
   }
   async function deleteCategoria(id) {
     await dbRef(`categorias/${id}`).remove();
+    await auditLog('category.deleted', 'category', id, {});
   }
   function subscribeCategorias(callback) {
     if (!state.fbDB) { callback({}); return () => {}; }
@@ -697,6 +1308,10 @@
     } else {
       await dbRef(`fornecedor_categoria/${key}`).remove();
     }
+    await auditLog('fornecedor.categorized', 'fornecedor', key, {
+      fornecedor: String(fornecedor).toUpperCase(),
+      categoriaId: categoriaId || null,
+    });
   }
   function subscribeFornecedorCategoria(callback) {
     if (!state.fbDB) { callback({}); return () => {}; }
@@ -722,6 +1337,7 @@
       deletedByName: state.user?.displayName || state.user?.email || 'Anônimo',
       deletedAt: firebase.database.ServerValue.TIMESTAMP,
     });
+    await auditLog('comment.deleted', 'comment', commentId, { cellKey });
   }
   // Restaura comentário soft-deleted (qualquer autenticado pode restaurar)
   async function restoreComment(cellKey, commentId) {
@@ -734,10 +1350,12 @@
       restoredByName: state.user?.displayName || state.user?.email || 'Anônimo',
       restoredAt: firebase.database.ServerValue.TIMESTAMP,
     });
+    await auditLog('comment.restored', 'comment', commentId, { cellKey });
   }
   // Exclusão permanente (só para uso em lixeira, se o usuário quiser apagar definitivamente)
   async function purgeComment(cellKey, commentId) {
     await dbRef(`comentarios/${cellKey}/${commentId}`).remove();
+    await auditLog('comment.purged', 'comment', commentId, { cellKey });
   }
 
   /* ========== Dados importados (relatórios SIA) ==========
@@ -748,10 +1366,50 @@
      ======================================================== */
   async function saveImportedData(payload) {
     if (!state.fbDB) throw new Error('Firebase não configurado');
+    // Enriquece com info do usuário que processou
+    payload.processedBy = payload.processedBy || state.user?.displayName || state.user?.email || 'Anônimo';
+    payload.processedByUid = state.user?.uid || null;
+
+    // Arquivar versão anterior no histórico (se existir), mantendo no máximo 5 entradas
+    try {
+      const currentSnap = await dbRef('dados_importados').once('value');
+      const current = currentSnap.val();
+      if (current) {
+        const histRef = dbRef('importacoes_historico').push();
+        await histRef.set({
+          payload: current,
+          processedAt: current.processedAt,
+          processedBy: current.processedBy,
+          processedByUid: current.processedByUid || null,
+          periodStart: current.periodStart || null,
+          periodEnd: current.periodEnd || null,
+          countPagar: (current.titulosPagar || []).length,
+          countReceber: (current.titulosReceber || []).length,
+          archivedAt: firebase.database.ServerValue.TIMESTAMP,
+        });
+        // Manter apenas as 5 mais recentes
+        const allSnap = await dbRef('importacoes_historico').once('value');
+        const all = allSnap.val() || {};
+        const sorted = Object.entries(all)
+          .map(([id, v]) => ({ id, ts: v.archivedAt || v.processedAt || 0 }))
+          .sort((a, b) => b.ts - a.ts);
+        if (sorted.length > 5) {
+          const toDelete = sorted.slice(5);
+          const deletions = {};
+          toDelete.forEach(e => { deletions[e.id] = null; });
+          await dbRef('importacoes_historico').update(deletions);
+        }
+      }
+    } catch (err) {
+      console.warn('Falha ao arquivar versão anterior:', err);
+      // Não bloqueia a importação nova
+    }
+
     // Metadados leves, separados do payload pesado
     const meta = {
       processedAt: payload.processedAt,
-      processedBy: payload.processedBy || null,
+      processedBy: payload.processedBy,
+      processedByUid: payload.processedByUid,
       periodStart: payload.periodStart || null,
       periodEnd: payload.periodEnd || null,
       countPagar: (payload.titulosPagar || []).length,
@@ -762,6 +1420,12 @@
     await dbRef('').update({
       'dados_importados': payload,
       'dados_importados_meta': meta,
+    });
+    await auditLog('import.applied', 'import', null, {
+      periodStart: meta.periodStart,
+      periodEnd: meta.periodEnd,
+      countPagar: meta.countPagar,
+      countReceber: meta.countReceber,
     });
   }
   // Busca só os metadados (rápido, poucos KB)
@@ -802,6 +1466,188 @@
     });
   }
 
+  /* ========== Bancos e Saldos (Fase 3) ==========
+     Cadastro de contas bancárias (livres e vinculadas/garantidas).
+     Cada conta tem um histórico de lançamentos de saldo (data + valor).
+     O saldo "atual" de cada conta é o lançamento mais recente.
+
+     Estrutura:
+     /filadelfia/bancos/{bankId}
+       { nome, tipo: 'livre'|'vinculada', ordem, arquivado: bool, createdAt, ... }
+     /filadelfia/saldos_historico/{eventId}
+       { bankId, valor, ts (data), authorUid, authorName, createdAt }
+     ================================================ */
+  const BANK_TYPE_LIVRE = 'livre';
+  const BANK_TYPE_VINCULADA = 'vinculada';
+
+  // Lista inicial de bancos pré-cadastrados (criada automaticamente na primeira vez)
+  const DEFAULT_BANKS = [
+    // Contas livres (operacionais)
+    { nome: 'ABC', tipo: 'livre', ordem: 10 },
+    { nome: 'ITAU', tipo: 'livre', ordem: 20 },
+    { nome: 'SAFRA', tipo: 'livre', ordem: 30 },
+    { nome: 'BRADESCO', tipo: 'livre', ordem: 40 },
+    { nome: 'CAIXA', tipo: 'livre', ordem: 50 },
+    { nome: 'C6', tipo: 'livre', ordem: 60 },
+    { nome: 'BANCO DO BRASIL', tipo: 'livre', ordem: 70 },
+    { nome: 'SANTANDER', tipo: 'livre', ordem: 80 },
+    { nome: 'ASA', tipo: 'livre', ordem: 90 },
+    { nome: 'SOFISA', tipo: 'livre', ordem: 100 },
+    // Contas vinculadas/garantidas
+    { nome: 'VINCULADA DO SAFRA', tipo: 'vinculada', ordem: 210 },
+    { nome: 'VINCULADA C6', tipo: 'vinculada', ordem: 220 },
+    { nome: 'GARANTIDA CAIXA', tipo: 'vinculada', ordem: 230 },
+    { nome: 'VINCULADA SAFRA', tipo: 'vinculada', ordem: 240 },
+    { nome: 'VINCULADA BB', tipo: 'vinculada', ordem: 250 },
+    { nome: 'GARANTIDA SOFISA', tipo: 'vinculada', ordem: 260 },
+    { nome: 'VINCULADA SANTANDER', tipo: 'vinculada', ordem: 270 },
+    { nome: 'VINCULADA ASA', tipo: 'vinculada', ordem: 280 },
+    { nome: 'VINCULADA ABC', tipo: 'vinculada', ordem: 290 },
+  ];
+
+  // Chamado pela página do fluxo ao inicializar; se já existir, não faz nada
+  async function ensureDefaultBanks() {
+    if (!state.fbDB) return;
+    const snap = await dbRef('bancos').once('value');
+    const existing = snap.val();
+    if (existing && Object.keys(existing).length > 0) return;
+
+    // Só cria se usuário pode escrever (evita erro de permissão para viewer)
+    if (!isEditor()) return;
+
+    const updates = {};
+    DEFAULT_BANKS.forEach(b => {
+      const id = 'bank_' + b.nome.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      updates[id] = {
+        ...b,
+        arquivado: false,
+        createdBy: state.user?.uid || null,
+        createdByName: state.user?.displayName || 'Sistema',
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+      };
+    });
+    await dbRef('bancos').update(updates);
+  }
+
+  async function createBank(nome, tipo, ordem) {
+    if (!state.fbDB) throw new Error('Firebase não configurado');
+    const nomeNorm = String(nome).trim().toUpperCase();
+    if (!nomeNorm) throw new Error('Nome do banco é obrigatório');
+    if (![BANK_TYPE_LIVRE, BANK_TYPE_VINCULADA].includes(tipo)) {
+      throw new Error('Tipo inválido (use livre ou vinculada)');
+    }
+    const id = 'bank_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    await dbRef(`bancos/${id}`).set({
+      nome: nomeNorm,
+      tipo,
+      ordem: ordem || 999,
+      arquivado: false,
+      createdBy: state.user?.uid || null,
+      createdByName: state.user?.displayName || 'Anônimo',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+    await auditLog('bank.created', 'bank', id, { nome: nomeNorm, tipo });
+    return id;
+  }
+
+  async function updateBank(id, updates) {
+    if (!state.fbDB) throw new Error('Firebase não configurado');
+    const payload = { ...updates };
+    if (payload.nome) payload.nome = String(payload.nome).trim().toUpperCase();
+    await dbRef(`bancos/${id}`).update(payload);
+  }
+
+  async function deleteBank(id) {
+    if (!state.fbDB) throw new Error('Firebase não configurado');
+    // Marca como arquivado em vez de deletar (para preservar histórico)
+    await dbRef(`bancos/${id}/arquivado`).set(true);
+    await auditLog('bank.deleted', 'bank', id, {});
+  }
+
+  function subscribeBancos(callback) {
+    if (!state.fbDB) { callback({}); return () => {}; }
+    const ref = dbRef('bancos');
+    const handler = snap => callback(snap.val() || {});
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+
+  // Lançar um saldo (registra no histórico)
+  async function createSaldo(bankId, valor) {
+    if (!state.fbDB) throw new Error('Firebase não configurado');
+    if (!bankId) throw new Error('Banco inválido');
+    const val = parseFloat(valor);
+    if (!Number.isFinite(val)) throw new Error('Valor inválido');
+    const ref = dbRef('saldos_historico').push();
+    const ts = Date.now(); // data = momento do lançamento (Opção A)
+    await ref.set({
+      bankId,
+      valor: val,
+      ts,
+      authorUid: state.user?.uid || null,
+      authorName: state.user?.displayName || state.user?.email || 'Anônimo',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+    await auditLog('saldo.created', 'saldo', ref.key, { bankId, valor: val });
+    return ref.key;
+  }
+
+  // Assinatura do histórico completo (todas as contas)
+  function subscribeSaldosHistorico(callback) {
+    if (!state.fbDB) { callback({}); return () => {}; }
+    const ref = dbRef('saldos_historico');
+    const handler = snap => callback(snap.val() || {});
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+
+  // Helper: dado um histórico completo, retorna { bankId -> {valor, ts, authorName} } com o último lançamento de cada banco
+  function computeCurrentSaldos(historico) {
+    const latest = {};
+    Object.values(historico || {}).forEach(entry => {
+      if (!entry || !entry.bankId) return;
+      const prev = latest[entry.bankId];
+      if (!prev || (entry.ts || 0) > (prev.ts || 0)) {
+        latest[entry.bankId] = entry;
+      }
+    });
+    return latest;
+  }
+
+  /* ========== Helpers de UI para perfis (guard visual) ==========
+     Páginas chamam applyRoleGuards() depois de renderizar conteúdo
+     para esconder/desabilitar elementos conforme o perfil do usuário.
+
+     - [data-requires="editor"] elementos visíveis apenas para editor+
+     - [data-requires="admin"]  elementos visíveis apenas para admin
+     - [data-viewer-readonly]   inputs ficam somente-leitura para viewer
+     ================================================ */
+  function applyRoleGuards(container) {
+    const root = container || document;
+    root.querySelectorAll('[data-requires]').forEach(el => {
+      const req = el.getAttribute('data-requires');
+      if (!hasRole(req)) {
+        el.setAttribute('hidden', '');
+        el.style.display = 'none';
+      } else {
+        el.removeAttribute('hidden');
+        el.style.display = '';
+      }
+    });
+    if (!isEditor()) {
+      root.querySelectorAll('[data-viewer-readonly]').forEach(el => {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+          el.setAttribute('disabled', '');
+          el.setAttribute('readonly', '');
+        } else if (el.tagName === 'BUTTON') {
+          el.setAttribute('disabled', '');
+          el.style.opacity = '0.4';
+          el.style.cursor = 'not-allowed';
+        }
+      });
+    }
+  }
+
   /* ========== Export público ========== */
   window.Filadelfia = {
     APP_VERSION,
@@ -809,7 +1655,21 @@
     IS_FIREBASE_CONFIGURED,
     state,
     initFirebase,
-    Auth: { requireAuth, login, logout },
+    Auth: {
+      requireAuth, login, logout,
+      hasRole, isAdmin, isEditor, isViewer,
+      ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER,
+      listUsers, updateUserRole,
+      ensureUserRecord,
+    },
+    Audit: {
+      log: auditLog,
+      fetchEntries: fetchAuditEntries,
+      cleanup: cleanupAuditLog,
+      actionLabel: auditActionLabel,
+      ACTION_LABELS: AUDIT_ACTION_LABELS,
+      RETENTION_DAYS: AUDIT_RETENTION_DAYS,
+    },
     Dates: {
       FIXED_HOLIDAYS, isHoliday, isBusinessDay, isWeekend,
       nextBusinessDay, nextBusinessDayStrict,
@@ -834,8 +1694,15 @@
       subscribeAllComments, deleteComment, restoreComment, purgeComment,
       saveImportedData, fetchImportedData, fetchImportedDataMeta,
       subscribeImportedData, subscribeImportedDataMeta, clearImportedData,
+      // Bancos e Saldos (Fase 3)
+      ensureDefaultBanks, createBank, updateBank, deleteBank, subscribeBancos,
+      BANK_TYPE_LIVRE, BANK_TYPE_VINCULADA, DEFAULT_BANKS,
+      createSaldo, subscribeSaldosHistorico, computeCurrentSaldos,
     },
-    UI: { renderTopbar, renderFooter, updateSyncBadge, showToast, hideToast, showLoading, hideLoading },
+    UI: {
+      renderTopbar, renderFooter, updateSyncBadge, showToast, hideToast,
+      showLoading, hideLoading, applyRoleGuards,
+    },
     Config: { firebaseConfig },
   };
 

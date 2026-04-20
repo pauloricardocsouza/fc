@@ -894,3 +894,314 @@ table.grid tbody tr.sub-row:hover td.first {
 }
 
 .export-mode { max-height: none !important; overflow: visible !important; }
+
+/* ========== Painel de Saldos Bancários (Fase 3) ========== */
+.saldos-wrap {
+  margin-top: 28px;
+}
+.saldos-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+.saldos-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.saldos-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.saldos-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.saldos-head-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn-sm {
+  padding: 7px 12px;
+  font-size: 11.5px;
+}
+
+/* Totais consolidados */
+.saldos-totais {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.saldo-total-card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.saldo-total-card .stc-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.saldo-total-card .stc-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 4px;
+  letter-spacing: -0.02em;
+}
+.saldo-total-card .stc-val.neg { color: var(--danger-text); }
+.saldo-total-card .stc-meta {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.saldo-total-card.saldo-total-livre { background: var(--accent-bg); }
+.saldo-total-card.saldo-total-livre .stc-lbl { color: var(--accent-text); }
+.saldo-total-card.saldo-total-vinculada { background: rgba(124, 58, 237, 0.08); }
+.saldo-total-card.saldo-total-vinculada .stc-lbl { color: var(--violet-text); }
+.saldo-total-card.saldo-total-geral {
+  background: var(--brand-black);
+  color: #fff;
+  border-color: var(--brand-black);
+}
+.saldo-total-card.saldo-total-geral .stc-lbl { color: #9aa3b2; }
+.saldo-total-card.saldo-total-geral .stc-meta { color: #9aa3b2; }
+
+/* Grupos e lista */
+.saldos-grupo {
+  margin-bottom: 18px;
+}
+.saldos-grupo:last-child { margin-bottom: 0; }
+.saldos-grupo-titulo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.saldos-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.saldo-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s;
+}
+.saldo-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.saldo-item .bank-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-black);
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.saldo-item.tipo-vinculada .bank-badge { background: var(--violet); }
+.saldo-item .bank-info {
+  flex: 1;
+  min-width: 0;
+}
+.saldo-item .bank-nome {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.saldo-item .bank-ts {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.saldo-item .bank-valor {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  border: 1px dashed transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 90px;
+  text-align: right;
+}
+.saldo-item .bank-valor:hover {
+  border-color: var(--accent);
+  background: #fff;
+}
+.saldo-item .bank-valor.empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.saldo-item .bank-valor.neg { color: var(--danger-text); }
+.saldo-item .bank-valor-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border: 1.5px solid var(--accent);
+  border-radius: 5px;
+  width: 120px;
+  text-align: right;
+  outline: none;
+}
+.saldo-item .bank-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.saldo-item:hover .bank-delete { opacity: 1; }
+.saldo-item .bank-delete:hover { color: var(--danger); }
+
+/* Histórico de saldos (modal) */
+.saldos-hist-filtros {
+  padding: 14px 20px 10px;
+}
+.saldos-hist-filtros select {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--surface);
+}
+.saldos-hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.saldos-hist-table th {
+  text-align: left;
+  padding: 9px 14px;
+  background: var(--brand-black);
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+}
+.saldos-hist-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.saldos-hist-table tr:hover td { background: var(--surface-2); }
+.saldos-hist-table .hist-valor {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  text-align: right;
+}
+.saldos-hist-table .hist-valor.neg { color: var(--danger-text); }
+.saldos-hist-table .hist-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 30px 20px;
+  font-style: italic;
+}
+
+/* Responsivo */
+@media (max-width: 720px) {
+  .saldos-totais { grid-template-columns: 1fr; gap: 8px; }
+  .saldos-lista { grid-template-columns: 1fr; }
+  .saldos-card { padding: 16px; }
+  .saldo-item .bank-delete { opacity: 1; }
+}
+
+/* ========== Campo de recorrência no form (Fase 5) ========== */
+.form-recurrence-wrap {
+  margin-top: 8px;
+  border-top: 1px dashed var(--border);
+  padding-top: 14px;
+}
+.form-recurrence-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  transition: border-color 0.15s, background 0.15s;
+}
+.form-recurrence-toggle:hover { border-color: var(--accent); }
+.form-recurrence-toggle input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+.form-recurrence-toggle input[type="checkbox"]:checked ~ .recurrence-box .recurrence-title { color: var(--accent); }
+.recurrence-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.recurrence-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.recurrence-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.form-recurrence-options {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.form-recurrence-preview {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--accent-text);
+  padding: 8px 10px;
+  background: #fff;
+  border-radius: 5px;
+  line-height: 1.5;
+}
+.form-recurrence-preview b { color: var(--text); }

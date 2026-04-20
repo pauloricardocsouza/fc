@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=2.9">
-<link rel="stylesheet" href="fluxo.css?v=2.9">
+<link rel="stylesheet" href="shared.css?v=3.1">
+<link rel="stylesheet" href="fluxo.css?v=3.1">
 <style>
   /* Meta-info chips (data/hora da importação + período) */
   .meta-info {
@@ -173,6 +173,117 @@
       </div>
     </div>
   </section>
+
+  <!-- Painel de Saldos Bancários (Fase 3) -->
+  <section class="saldos-wrap">
+    <div class="saldos-card">
+      <div class="saldos-head">
+        <div>
+          <h3>Saldos bancários</h3>
+          <div class="saldos-sub" id="saldos-sub">Clique em um valor para lançar um novo saldo</div>
+        </div>
+        <div class="saldos-head-actions">
+          <button class="btn btn-ghost btn-sm" id="btn-saldos-historico">Ver histórico</button>
+          <button class="btn btn-ghost btn-sm" id="btn-saldos-novo-banco" data-requires="editor">+ Nova conta</button>
+        </div>
+      </div>
+
+      <!-- Totais consolidados -->
+      <div class="saldos-totais">
+        <div class="saldo-total-card saldo-total-livre">
+          <div class="stc-lbl">CONTAS LIVRES</div>
+          <div class="stc-val" id="saldo-total-livre">R$ 0,00</div>
+          <div class="stc-meta" id="saldo-total-livre-meta">— contas</div>
+        </div>
+        <div class="saldo-total-card saldo-total-vinculada">
+          <div class="stc-lbl">VINCULADAS / GARANTIDAS</div>
+          <div class="stc-val" id="saldo-total-vinculada">R$ 0,00</div>
+          <div class="stc-meta" id="saldo-total-vinculada-meta">— contas</div>
+        </div>
+        <div class="saldo-total-card saldo-total-geral">
+          <div class="stc-lbl">SALDO CONSOLIDADO</div>
+          <div class="stc-val" id="saldo-total-geral">R$ 0,00</div>
+          <div class="stc-meta">Soma de todas as contas</div>
+        </div>
+      </div>
+
+      <!-- Grupos de bancos -->
+      <div class="saldos-grupo">
+        <div class="saldos-grupo-titulo">Contas livres</div>
+        <div class="saldos-lista" id="saldos-lista-livres"></div>
+      </div>
+
+      <div class="saldos-grupo">
+        <div class="saldos-grupo-titulo">Vinculadas / garantidas</div>
+        <div class="saldos-lista" id="saldos-lista-vinculadas"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Modal: Histórico de saldos -->
+<div class="modal-overlay" id="saldos-historico-modal">
+  <div class="modal" style="max-width: 780px;">
+    <div class="head">
+      <div class="title">
+        <h3>Histórico de saldos lançados</h3>
+        <div class="sub" id="saldos-hist-sub">Todos os lançamentos ordenados por data</div>
+      </div>
+      <button class="close-btn" data-close="saldos-historico" aria-label="Fechar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="body">
+      <div class="saldos-hist-filtros">
+        <select id="saldos-hist-banco-filter">
+          <option value="">Todos os bancos</option>
+        </select>
+      </div>
+      <table class="saldos-hist-table">
+        <thead>
+          <tr>
+            <th>Quando</th>
+            <th>Banco</th>
+            <th>Valor</th>
+            <th>Quem lançou</th>
+          </tr>
+        </thead>
+        <tbody id="saldos-hist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nova conta bancária -->
+<div class="modal-overlay" id="novo-banco-modal">
+  <div class="modal" style="max-width: 460px;">
+    <div class="head">
+      <div class="title"><h3>Nova conta bancária</h3></div>
+      <button class="close-btn" data-close="novo-banco" aria-label="Fechar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="body">
+      <div class="form-field">
+        <label>Nome do banco / conta</label>
+        <input type="text" id="novo-banco-nome" placeholder="ex: XP INVESTIMENTOS" maxlength="60" />
+      </div>
+      <div class="form-field">
+        <label>Tipo</label>
+        <select id="novo-banco-tipo">
+          <option value="livre">Livre (operacional)</option>
+          <option value="vinculada">Vinculada / Garantida</option>
+        </select>
+      </div>
+    </div>
+    <div class="foot">
+      <div style="flex: 1;"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" data-close="novo-banco">Cancelar</button>
+        <button class="btn" id="btn-salvar-novo-banco">Criar conta</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal de detalhes -->
@@ -279,6 +390,35 @@
         <label>Observação</label>
         <textarea id="form-note" maxlength="500" placeholder="Nota interna (opcional)"></textarea>
       </div>
+
+      <!-- Recorrência (Fase 5) -->
+      <div class="form-recurrence-wrap">
+        <label class="form-recurrence-toggle">
+          <input type="checkbox" id="form-recurrence" />
+          <span class="recurrence-box">
+            <span class="recurrence-title">↻ Repetir automaticamente</span>
+            <span class="recurrence-desc">Criar este lançamento periodicamente até uma data final</span>
+          </span>
+        </label>
+        <div class="form-recurrence-options" id="form-recurrence-options" style="display: none;">
+          <div class="form-grid-2" style="margin-bottom: 10px;">
+            <div class="form-field">
+              <label>Frequência</label>
+              <select id="form-recurrence-freq">
+                <option value="mensal">Mensal</option>
+                <option value="semanal">Semanal</option>
+                <option value="quinzenal">Quinzenal</option>
+                <option value="anual">Anual</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Repetir até</label>
+              <input type="date" id="form-recurrence-end" />
+            </div>
+          </div>
+          <div class="form-recurrence-preview" id="form-recurrence-preview">—</div>
+        </div>
+      </div>
     </div>
     <div class="foot">
       <div style="color:var(--text-muted);font-size:11px;">Salvo apenas neste dispositivo</div>
@@ -306,8 +446,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <!-- Módulos do sistema -->
-<script src="shared.js?v=2.9"></script>
-<script src="fluxo.js?v=2.9"></script>
+<script src="shared.js?v=3.1"></script>
+<script src="fluxo.js?v=3.1"></script>
 
 </body>
 </html>

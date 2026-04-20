@@ -57,11 +57,25 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
 {
   "rules": {
     "filadelfia": {
+      "usuarios": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin' || !root.child('filadelfia/usuarios').orderByChild('role').equalTo('admin').limitToFirst(1).exists())",
+          ".validate": "newData.hasChildren(['uid', 'email', 'role']) && newData.child('role').val().matches(/^(admin|editor|viewer)$/)"
+        }
+      },
+      "audit": {
+        ".read": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin'",
+        "$eventId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('actorUid').val() === auth.uid) || (data.exists() && !newData.exists() && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin'))",
+          ".validate": "newData.hasChildren(['action', 'actorUid', 'ts'])"
+        }
+      },
       "comentarios": {
         ".read": "auth != null",
         "$cellKey": {
           "$commentId": {
-            ".write": "auth != null && ((data.exists() == false && newData.child('authorUid').val() === auth.uid) || (newData.exists() == false && data.child('authorUid').val() === auth.uid) || (data.exists() && newData.exists() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('text').val() === data.child('text').val() && newData.child('createdAt').val() === data.child('createdAt').val()))",
+            ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && ((data.exists() == false && newData.child('authorUid').val() === auth.uid) || (newData.exists() == false && (data.child('authorUid').val() === auth.uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')) || (data.exists() && newData.exists() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('text').val() === data.child('text').val() && newData.child('createdAt').val() === data.child('createdAt').val()))",
             ".validate": "newData.hasChildren(['author', 'authorUid', 'text', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 1000"
           }
         }
@@ -69,36 +83,54 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
       "lancamentos": {
         ".read": "auth != null",
         "$lancId": {
-          ".write": "auth != null && (data.exists() == false || data.child('authorUid').val() === auth.uid)",
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && (data.exists() == false || data.child('authorUid').val() === auth.uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')",
           ".validate": "newData.hasChildren(['tipo', 'entidade', 'vencimento', 'valor', 'authorUid']) && newData.child('authorUid').val() === auth.uid && newData.child('valor').isNumber() && newData.child('valor').val() > 0 && newData.child('entidade').isString() && newData.child('entidade').val().length <= 120"
         }
       },
       "deletados": {
         ".read": "auth != null",
         "$titleId": {
-          ".write": "auth != null"
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
         }
       },
       "categorias": {
         ".read": "auth != null",
         "$categoriaId": {
-          ".write": "auth != null && (data.exists() == false || data.child('nativa').val() != true || newData.child('nativa').val() === data.child('nativa').val())",
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && (data.exists() == false || data.child('nativa').val() != true || newData.child('nativa').val() === data.child('nativa').val())",
           ".validate": "newData.hasChild('nome') && newData.child('nome').isString() && newData.child('nome').val().length >= 2 && newData.child('nome').val().length <= 60"
         }
       },
       "fornecedor_categoria": {
         ".read": "auth != null",
         "$key": {
-          ".write": "auth != null"
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
         }
       },
       "dados_importados": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
       },
       "dados_importados_meta": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
+      },
+      "importacoes_historico": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
+      },
+      "bancos": {
+        ".read": "auth != null",
+        "$bankId": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'",
+          ".validate": "newData.hasChildren(['nome', 'tipo']) && newData.child('nome').isString() && newData.child('tipo').val().matches(/^(livre|vinculada)$/)"
+        }
+      },
+      "saldos_historico": {
+        ".read": "auth != null",
+        "$eventId": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && (!data.exists() || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')",
+          ".validate": "newData.hasChildren(['bankId', 'valor', 'authorUid']) && newData.child('valor').isNumber() && newData.child('authorUid').val() === auth.uid"
+        }
       }
     }
   }
@@ -107,12 +139,17 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
 
 **O que essas regras fazem:**
 
-- **Comentários:** qualquer autenticado lê; o autor pode criar, editar (mudar texto) e excluir permanentemente o próprio; qualquer autenticado pode marcar como excluído (soft-delete) ou restaurar, desde que não altere texto, autor ou data de criação. Texto limitado a 1000 caracteres.
-- **Lançamentos manuais:** qualquer autenticado lê; só o autor edita/exclui o próprio. Valor precisa ser positivo, nome do fornecedor/cliente até 120 caracteres.
-- **Deletados (títulos importados ocultados):** qualquer autenticado lê e edita — a operação é compartilhada entre a equipe.
-- **Categorias:** qualquer autenticado cria, edita ou exclui. Categorias nativas (como "DEMAIS FORNECEDORES") não podem ser desnaturalizadas. Nome entre 2 e 60 caracteres.
-- **Fornecedor → categoria:** qualquer autenticado atribui/remove categorias de fornecedores.
-- **Dados importados:** qualquer autenticado lê e grava — é o payload dos relatórios SIA sincronizado entre todos os dispositivos da equipe. O nó `dados_importados_meta` é atualizado junto e contém apenas metadados leves (datas, contagens) usados para verificação rápida de versão sem baixar o payload completo.
+- **Usuários (`/usuarios`):** qualquer autenticado lê (para mostrar nome/role nas telas). Cada usuário pode escrever apenas o próprio registro (cria na primeira vez que loga). Admins podem alterar registros de outros (atribuir roles). Regra especial: se **ainda não existe nenhum admin**, qualquer usuário consegue criar seu registro (bootstrap inicial). Role válido só pode ser `admin`, `editor` ou `viewer`.
+- **Auditoria (`/audit`):** **só admins leem**. Qualquer usuário autenticado pode criar eventos (seu próprio, validado pelo `actorUid === auth.uid`). Só admins podem deletar eventos (para a rotina de limpeza automática que apaga registros antigos).
+- **Comentários:** qualquer autenticado lê; viewer **não escreve nada**; editor/admin criam próprios comentários. Autor pode editar/excluir o próprio; **admin pode excluir comentários de qualquer usuário**. Soft-delete/restore continua funcionando como antes. Texto limitado a 1000 caracteres.
+- **Lançamentos manuais:** qualquer autenticado lê; viewer **não escreve**; editor edita/exclui o próprio; **admin pode editar/excluir qualquer lançamento**. Valor precisa ser positivo, nome até 120 caracteres.
+- **Deletados (títulos ocultados):** qualquer autenticado lê; viewer **não escreve**; editor/admin compartilham a operação.
+- **Categorias:** qualquer autenticado lê; viewer **não escreve**; editor/admin criam, editam, excluem. Categorias nativas continuam protegidas.
+- **Fornecedor → categoria:** qualquer autenticado lê; viewer **não escreve**; editor/admin atribuem.
+- **Dados importados:** qualquer autenticado lê; viewer **não importa** (não escreve).
+
+**Observação importante sobre o bootstrap (primeiro login após atualizar):**
+Depois de publicar as rules novas e atualizar os arquivos do sistema, o **primeiro usuário** que abrir o app e não tiver registro em `/filadelfia/usuarios/{seu_uid}` será automaticamente promovido a **admin**. Se já houver outros usuários autenticados, o segundo em diante será criado como **editor**. Portanto, **você deve ser o primeiro a acessar após a atualização**, para garantir que você vire o admin inicial. Depois, pela página de Configurações (Fase 2), você pode ajustar o role dos outros usuários manualmente.
 
 **Importante:** em todos os casos o `authorUid` é validado contra o token de autenticação do Firebase, impedindo falsificação de identidade.
 

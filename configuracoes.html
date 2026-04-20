@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configurações — Filadelfia</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css?v=3.1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<style>
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  main { flex: 1; }
+
+  .conf-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 40px;
+  }
+
+  /* Abas */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 18px;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  /* Card genérico */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .card .desc {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  /* Lista de usuários */
+  .users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .user-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .user-row:last-child { border-bottom: none; }
+  .user-row .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+  }
+  .user-row .info .name {
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+  .user-row .info .email {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    word-break: break-all;
+  }
+  .user-row .info .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .user-row .role-select {
+    padding: 7px 10px;
+    font-size: 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--surface);
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .user-row .you {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 3px 7px;
+    background: var(--accent-bg-strong);
+    color: var(--accent-text);
+    border-radius: 3px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  /* Tabela de auditoria */
+  .audit-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .audit-filters select,
+  .audit-filters input {
+    padding: 8px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  .audit-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: var(--brand-black);
+    color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .audit-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .audit-table tr:hover td { background: var(--surface-2); }
+  .audit-table .col-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+  .audit-table .col-actor { font-weight: 600; }
+  .audit-table .col-action { }
+  .audit-table .col-details { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-muted); word-break: break-word; }
+
+  .audit-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* Info boxes */
+  .info-box {
+    padding: 12px 14px;
+    background: var(--accent-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--text);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .info-box b { color: var(--accent-text); }
+
+  .warn-box {
+    padding: 12px 14px;
+    background: rgba(245, 165, 36, 0.1);
+    border-left: 3px solid #f59e0b;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--text);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .danger-box {
+    padding: 12px 14px;
+    background: var(--danger-bg);
+    border-left: 3px solid var(--danger);
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--text);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* Backup section */
+  .backup-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .backup-file-input {
+    display: none;
+  }
+
+  /* Access denied screen */
+  .denied-wrap {
+    max-width: 520px;
+    margin: 80px auto;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .denied-wrap .lock-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  .denied-wrap h2 {
+    margin: 0 0 8px;
+    font-size: 22px;
+  }
+  .denied-wrap p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  /* Responsivo */
+  @media (max-width: 720px) {
+    .user-row {
+      grid-template-columns: 36px 1fr;
+      grid-template-rows: auto auto;
+      gap: 8px 10px;
+    }
+    .user-row .role-select { grid-column: 2; }
+    .user-row .you { grid-column: 2; justify-self: start; }
+    .audit-table .col-details { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar"></div>
+
+<div class="page-head">
+  <div class="conf-wrap">
+    <div class="kicker">ADMINISTRAÇÃO</div>
+    <h1>Configurações</h1>
+    <p class="desc">Gestão de usuários, auditoria, backups e parâmetros do sistema.</p>
+  </div>
+</div>
+
+<main>
+  <div class="conf-wrap">
+
+    <!-- Acesso negado (viewer/editor tentando entrar) -->
+    <div id="denied" class="denied-wrap hidden">
+      <div class="lock-icon">🔒</div>
+      <h2>Acesso restrito</h2>
+      <p>Esta página é visível apenas para usuários com perfil <b>Administrador</b>. Se você precisa de acesso, solicite a um admin do sistema.</p>
+      <a class="btn" href="index.html">Voltar ao Fluxo de Caixa</a>
+    </div>
+
+    <!-- Conteúdo admin -->
+    <div id="content" class="hidden">
+
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="usuarios">Usuários</button>
+        <button class="tab" data-tab="auditoria">Auditoria</button>
+        <button class="tab" data-tab="backup">Backup &amp; Restauração</button>
+        <button class="tab" data-tab="importacoes">Histórico de importações</button>
+      </div>
+
+      <!-- ABA: USUÁRIOS -->
+      <div class="pane active" id="pane-usuarios">
+        <div class="card">
+          <h3>Usuários do sistema</h3>
+          <div class="desc">Gerencie quem pode acessar e o nível de permissão de cada um.</div>
+
+          <div class="info-box">
+            <b>3 perfis disponíveis:</b>
+            <br/><b>Admin:</b> acesso total, inclusive esta página.
+            <br/><b>Editor:</b> pode criar, editar e excluir dados; não gerencia usuários.
+            <br/><b>Viewer:</b> apenas visualiza; não altera nada.
+          </div>
+
+          <div id="users-list" class="users-list">
+            <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+              Carregando usuários…
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: AUDITORIA -->
+      <div class="pane" id="pane-auditoria">
+        <div class="card">
+          <h3>Trilha de auditoria</h3>
+          <div class="desc">Registro das ações realizadas no sistema. Retenção automática: 60 dias.</div>
+
+          <div class="audit-filters">
+            <select id="audit-action-filter">
+              <option value="">Todas as ações</option>
+            </select>
+            <select id="audit-user-filter">
+              <option value="">Todos os usuários</option>
+            </select>
+            <button class="btn" id="btn-audit-refresh">Atualizar</button>
+            <button class="btn" id="btn-audit-cleanup" style="margin-left: auto;">Limpar antigos</button>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Quando</th>
+                  <th>Quem</th>
+                  <th>Ação</th>
+                  <th>Detalhes</th>
+                </tr>
+              </thead>
+              <tbody id="audit-tbody">
+                <tr><td colspan="4" class="audit-empty">Carregando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: BACKUP -->
+      <div class="pane" id="pane-backup">
+        <div class="card">
+          <h3>Backup do sistema</h3>
+          <div class="desc">Gere uma cópia completa dos dados para arquivo ou restaure a partir de um backup anterior.</div>
+
+          <div class="info-box">
+            O backup inclui: lançamentos manuais, comentários (ativos e soft-deleted), categorias, atribuições de fornecedor, títulos ocultados, usuários e perfis, saldos bancários, importações históricas e configurações.
+            <br/>Os dados importados do SIA são sincronizados e podem ser reimportados; eles também entram no arquivo.
+          </div>
+
+          <div class="backup-actions">
+            <button class="btn btn-primary" id="btn-backup-download">
+              ↓ Baixar backup (.json)
+            </button>
+            <button class="btn" id="btn-backup-restore">
+              ↑ Restaurar de arquivo…
+            </button>
+            <input type="file" id="backup-file-input" class="backup-file-input" accept=".json,application/json" />
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="color: var(--danger-text);">Zona de perigo</h3>
+          <div class="desc">Operações destrutivas. Use com extrema cautela.</div>
+
+          <div class="danger-box">
+            <b>Limpar dados importados:</b> remove o payload atual dos relatórios SIA do Firebase. Os outros dados (lançamentos, comentários, categorias) permanecem intactos. Útil antes de reimportar do zero.
+          </div>
+
+          <button class="btn btn-danger" id="btn-clear-imported">
+            Limpar dados importados
+          </button>
+        </div>
+      </div>
+
+      <!-- ABA: IMPORTAÇÕES -->
+      <div class="pane" id="pane-importacoes">
+        <div class="card">
+          <h3>Histórico de importações</h3>
+          <div class="desc">As últimas 5 importações de relatórios SIA ficam arquivadas e podem ser restauradas se a mais recente estiver com problema.</div>
+
+          <div id="import-history-list">
+            <div style="padding: 30px 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+              Carregando histórico…
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<footer></footer>
+
+<!-- Toast e loading containers -->
+<div id="toast-container"></div>
+<div id="loading-overlay" class="hidden"><div class="loader-box"><div class="spinner"></div><div id="loading-text">Processando…</div></div></div>
+
+<script src="shared.js?v=3.1"></script>
+<script src="configuracoes.js?v=3.1"></script>
+
+</body>
+</html>
