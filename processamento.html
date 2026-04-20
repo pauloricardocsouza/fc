@@ -488,16 +488,55 @@
     document.getElementById('btn-clear').addEventListener('click', clearAll);
   }
 
-  function checkExisting() {
-    const data = F.Storage.safeGetJSON(F.KEYS.DATA, null);
-    if (!data) return;
+  async function checkExisting() {
+    // OTIMIZAÇÃO: buscar apenas metadados do Firebase (leve, poucos KB)
+    // em vez de baixar o payload inteiro só para mostrar "já existem dados"
+    let info = null;
+    let source = 'local';
+    const local = F.Storage.safeGetJSON(F.KEYS.DATA, null);
+
+    if (F.IS_FIREBASE_CONFIGURED) {
+      try {
+        const meta = await F.DB.fetchImportedDataMeta();
+        if (meta && meta.processedAt) {
+          const localAt = local?.processedAt;
+          const fbIsNewer = !localAt || new Date(meta.processedAt) > new Date(localAt);
+          if (fbIsNewer || !local) {
+            // Firebase está mais atualizado — usamos os metadados direto (sem baixar o payload)
+            info = {
+              processedAt: meta.processedAt,
+              countPagar: meta.countPagar,
+              countReceber: meta.countReceber,
+              periodStart: meta.periodStart,
+              periodEnd: meta.periodEnd,
+            };
+            source = 'sync';
+          }
+        }
+      } catch (e) { console.warn('Falha ao buscar metadados do Firebase:', e); }
+    }
+
+    // Fallback para dados locais se nada do Firebase
+    if (!info && local) {
+      info = {
+        processedAt: local.processedAt,
+        countPagar: (local.titulosPagar || []).length,
+        countReceber: (local.titulosReceber || []).length,
+        periodStart: local.periodStart,
+        periodEnd: local.periodEnd,
+      };
+    }
+
+    if (!info) return;
+
     try {
       const banner = document.getElementById('banner-existing');
-      const info = document.getElementById('banner-info');
-      const period = (data.periodStart && data.periodEnd)
-        ? `${F.Fmt.fmtFullDate(F.Dates.parseDateKey(data.periodStart))} a ${F.Fmt.fmtFullDate(F.Dates.parseDateKey(data.periodEnd))}`
+      const infoEl = document.getElementById('banner-info');
+      const period = (info.periodStart && info.periodEnd)
+        ? `${F.Fmt.fmtFullDate(F.Dates.parseDateKey(info.periodStart))} a ${F.Fmt.fmtFullDate(F.Dates.parseDateKey(info.periodEnd))}`
         : '—';
-      info.textContent = `Processado em ${F.Fmt.fmtDateTimeFull(new Date(data.processedAt))} · ${(data.titulosPagar || []).length} pagar · ${(data.titulosReceber || []).length} receber · período ${period}`;
+      const sourceLabel = source === 'sync' ? ' · sincronizado' : ' · apenas local';
+      infoEl.textContent = `Processado em ${F.Fmt.fmtDateTimeFull(new Date(info.processedAt))} · ${info.countPagar} pagar · ${info.countReceber} receber · período ${period}${sourceLabel}`;
       banner.classList.remove('hidden');
     } catch (e) { console.warn(e); }
   }
@@ -607,7 +646,7 @@
     if (!state.pagar || !state.receber) return;
     F.UI.showLoading('Salvando dados…');
 
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const minCommon = new Date(Math.max(state.pagar.periodMin.getTime(), state.receber.periodMin.getTime()));
         const maxCommon = new Date(Math.min(state.pagar.periodMax.getTime(), state.receber.periodMax.getTime()));
@@ -647,6 +686,16 @@
           return;
         }
 
+        // Sincronizar para o Firebase (permite acesso em qualquer dispositivo)
+        if (F.IS_FIREBASE_CONFIGURED) {
+          try {
+            await F.DB.saveImportedData(payload);
+          } catch (err) {
+            console.error('Falha ao sincronizar com Firebase:', err);
+            F.UI.showToast('Salvo localmente, mas falhou sincronizar: ' + err.message, 'error');
+          }
+        }
+
         const totalPagar = titulosPagar.reduce((s, t) => s + t.valor, 0);
         const totalReceber = titulosReceber.reduce((s, t) => s + t.valor, 0);
         const net = totalReceber - totalPagar;
@@ -680,9 +729,12 @@
     }, 50);
   }
 
-  function clearAll() {
-    if (!confirm('Limpar todos os dados importados? Isso NÃO apaga seus lançamentos manuais nem a lixeira.')) return;
+  async function clearAll() {
+    if (!confirm('Limpar todos os dados importados? Isso NÃO apaga seus lançamentos manuais nem a lixeira.\n\nA limpeza afeta todos os dispositivos conectados.')) return;
     try { localStorage.removeItem(F.KEYS.DATA); } catch {}
+    if (F.IS_FIREBASE_CONFIGURED) {
+      try { await F.DB.clearImportedData(); } catch (err) { console.error(err); }
+    }
     location.reload();
   }
 

@@ -91,6 +91,14 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
         "$key": {
           ".write": "auth != null"
         }
+      },
+      "dados_importados": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "dados_importados_meta": {
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     }
   }
@@ -104,6 +112,7 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
 - **Deletados (títulos importados ocultados):** qualquer autenticado lê e edita — a operação é compartilhada entre a equipe.
 - **Categorias:** qualquer autenticado cria, edita ou exclui. Categorias nativas (como "DEMAIS FORNECEDORES") não podem ser desnaturalizadas. Nome entre 2 e 60 caracteres.
 - **Fornecedor → categoria:** qualquer autenticado atribui/remove categorias de fornecedores.
+- **Dados importados:** qualquer autenticado lê e grava — é o payload dos relatórios SIA sincronizado entre todos os dispositivos da equipe. O nó `dados_importados_meta` é atualizado junto e contém apenas metadados leves (datas, contagens) usados para verificação rápida de versão sem baixar o payload completo.
 
 **Importante:** em todos os casos o `authorUid` é validado contra o token de autenticação do Firebase, impedindo falsificação de identidade.
 

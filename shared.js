@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v2.1';
+  const APP_VERSION = 'v2.4';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -434,14 +434,11 @@
   }
 
   /* ========== Footer ========== */
-  // Atualiza o rodapé da página adicionando a versão do sistema.
-  // Se não houver <footer> no DOM, cria um.
+  // Preenche o rodapé da página com texto institucional + versão do sistema.
+  // Só age se já houver um <footer> no DOM; páginas sem footer (ex: login) ficam limpas.
   function renderFooter() {
-    let footer = document.querySelector('footer');
-    if (!footer) {
-      footer = document.createElement('footer');
-      document.body.appendChild(footer);
-    }
+    const footer = document.querySelector('footer');
+    if (!footer) return;
     const copyText = 'FILADELFIA · SISTEMA FINANCEIRO · DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS';
     footer.innerHTML = `
       <span class="footer-text">${copyText}</span>
@@ -676,6 +673,68 @@
     await dbRef(`comentarios/${cellKey}/${commentId}`).remove();
   }
 
+  /* ========== Dados importados (relatórios SIA) ==========
+     Otimização: os metadados (processedAt, períodos, contagens) são salvos
+     em um nó separado e leve (`dados_importados_meta`). O payload pesado
+     (com milhares de títulos) fica em `dados_importados`. Assim, para saber
+     se temos a versão mais recente, basta consultar os metadados.
+     ======================================================== */
+  async function saveImportedData(payload) {
+    if (!state.fbDB) throw new Error('Firebase não configurado');
+    // Metadados leves, separados do payload pesado
+    const meta = {
+      processedAt: payload.processedAt,
+      processedBy: payload.processedBy || null,
+      periodStart: payload.periodStart || null,
+      periodEnd: payload.periodEnd || null,
+      countPagar: (payload.titulosPagar || []).length,
+      countReceber: (payload.titulosReceber || []).length,
+      version: payload.version || 1,
+    };
+    // Multi-path update para garantir atomicidade
+    await dbRef('').update({
+      'dados_importados': payload,
+      'dados_importados_meta': meta,
+    });
+  }
+  // Busca só os metadados (rápido, poucos KB)
+  async function fetchImportedDataMeta() {
+    if (!state.fbDB) return null;
+    const snap = await dbRef('dados_importados_meta').once('value');
+    return snap.val();
+  }
+  // Busca o payload completo (pode ser pesado com milhares de títulos)
+  async function fetchImportedData() {
+    if (!state.fbDB) return null;
+    const snap = await dbRef('dados_importados').once('value');
+    return snap.val();
+  }
+  // Assinatura em tempo real APENAS nos metadados — quando chega um meta novo,
+  // o consumidor decide se precisa baixar o payload completo
+  function subscribeImportedDataMeta(callback) {
+    if (!state.fbDB) { callback(null); return () => {}; }
+    const ref = dbRef('dados_importados_meta');
+    const handler = snap => callback(snap.val());
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+  // Assinatura ao payload completo (mais pesada, usar com cuidado)
+  function subscribeImportedData(callback) {
+    if (!state.fbDB) { callback(null); return () => {}; }
+    const ref = dbRef('dados_importados');
+    const handler = snap => callback(snap.val());
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+  // Remove payload e metadados (para o "Limpar tudo" global)
+  async function clearImportedData() {
+    if (!state.fbDB) return;
+    await dbRef('').update({
+      'dados_importados': null,
+      'dados_importados_meta': null,
+    });
+  }
+
   /* ========== Export público ========== */
   window.Filadelfia = {
     APP_VERSION,
@@ -706,6 +765,8 @@
       createCategoria, updateCategoria, deleteCategoria, subscribeCategorias, ensureDefaultCategory, DEFAULT_CATEGORY_NAME,
       setFornecedorCategoria, subscribeFornecedorCategoria,
       subscribeAllComments, deleteComment, restoreComment, purgeComment,
+      saveImportedData, fetchImportedData, fetchImportedDataMeta,
+      subscribeImportedData, subscribeImportedDataMeta, clearImportedData,
     },
     UI: { renderTopbar, renderFooter, updateSyncBadge, showToast, hideToast, showLoading, hideLoading },
     Config: { firebaseConfig },

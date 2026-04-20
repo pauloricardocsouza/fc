@@ -48,6 +48,30 @@
     unsubscribes = [];
     if (!F.DB.dbReady()) return;
 
+    // OTIMIZAÇÃO: escutamos apenas os metadados (poucos KB) para detectar
+    // quando há versão mais nova. Só baixamos o payload completo quando
+    // realmente preciso.
+    unsubscribes.push(F.DB.subscribeImportedDataMeta(async meta => {
+      if (!meta || !meta.processedAt) return;
+      const localAt = dataStore?.processedAt;
+      const isNewer = !localAt || new Date(meta.processedAt) > new Date(localAt);
+      if (!isNewer) return;
+      // Baixa payload completo (pode demorar com muitos títulos, mas só roda quando necessário)
+      try {
+        const data = await F.DB.fetchImportedData();
+        if (!data) return;
+        dataStore = data;
+        F.Storage.safeSetJSON(F.KEYS.DATA, data);
+        if (processed) {
+          rebuildAndRender();
+        } else {
+          finishInit();
+        }
+      } catch (err) {
+        console.error('Falha ao baixar dados importados:', err);
+      }
+    }));
+
     unsubscribes.push(F.DB.subscribeLancamentos(data => {
       provisions = data || {};
       if (processed) rebuildAndRender();
@@ -214,24 +238,35 @@
     loadLocalData();
     const hasAnyData = dataStore && ((dataStore.titulosPagar || []).length + (dataStore.titulosReceber || []).length > 0);
 
-    if (!hasAnyData && Object.keys(provisions).length === 0) {
-      if (!F.IS_FIREBASE_CONFIGURED) { showEmpty(); return; }
-      setTimeout(() => {
-        if (dataStore || Object.keys(provisions).length > 0) finishInit();
-        else showEmpty();
-      }, 900);
+    // Se já temos dados locais, renderiza IMEDIATAMENTE e deixa o Firebase
+    // sincronizar em segundo plano se houver versão mais nova
+    if (hasAnyData || Object.keys(provisions).length > 0) {
+      finishInit();
       return;
     }
-    finishInit();
+
+    // Sem dados locais: aguardar brevemente o Firebase responder com metadados
+    // (leve, poucos KB) antes de mostrar tela vazia
+    if (!F.IS_FIREBASE_CONFIGURED) { showEmpty(); return; }
+    setTimeout(() => {
+      if (processed) return; // Firebase já disparou finishInit
+      const hasDataNow = dataStore && ((dataStore.titulosPagar || []).length + (dataStore.titulosReceber || []).length > 0);
+      if (hasDataNow || Object.keys(provisions).length > 0) finishInit();
+      else showEmpty();
+    }, 600);
   }
 
+  let _initDone = false;
   function finishInit() {
     if (!dataStore) dataStore = { titulosPagar: [], titulosReceber: [], processedAt: new Date().toISOString() };
     buildIndex();
     if (!processed.allDates.length) { showEmpty(); return; }
     document.getElementById('empty-state').classList.add('hidden');
     document.getElementById('main-content').classList.remove('hidden');
-    setupControls();
+    if (!_initDone) {
+      setupControls();
+      _initDone = true;
+    }
     updateHeaderInfo();
     render();
 
