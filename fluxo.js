@@ -829,30 +829,51 @@
         deleteManualVendorRow(btn.dataset.deleteVendor);
       });
     });
-    grid.querySelectorAll('[data-toggle-receber]').forEach(row => {
-      row.addEventListener('click', (e) => {
-        // Evita disparar quando clica numa célula de valor (que tem data-detail ou data-add)
-        if (e.target.closest('[data-detail]') || e.target.closest('[data-add]')) return;
-        if (!hasReceberManual) return;
-        expandedReceber = !expandedReceber;
-        render();
+    // Expõe flags de render atual no dataset do grid (acessível pelo delegate)
+    grid.dataset.hasReceberManual = hasReceberManual ? '1' : '0';
+
+    // Delegação de eventos no grid — mais robusta que attach direto em cada row
+    // (evita problemas se os listeners forem perdidos ou não-atribuídos em alguma row)
+    if (!grid._toggleDelegated) {
+      grid._toggleDelegated = true;
+      grid.addEventListener('click', (e) => {
+        const target = e.target;
+        const td = target.closest('td');
+        // Ignora clique em células de valor (elas têm handler próprio)
+        if (td && (td.hasAttribute('data-detail') || td.hasAttribute('data-add'))) return;
+
+        // Toggle categoria (mais específico primeiro)
+        const catRow = target.closest('[data-toggle-cat]');
+        if (catRow) {
+          const cid = catRow.dataset.toggleCat;
+          console.log('[Toggle] Categoria clicada:', cid);
+          if (expandedCategories.has(cid)) expandedCategories.delete(cid);
+          else expandedCategories.add(cid);
+          render();
+          return;
+        }
+
+        // Toggle linha "Contas a Pagar (Total)"
+        if (target.closest('[data-toggle-pagar]')) {
+          console.log('[Toggle] Pagar Total clicado');
+          expandedPagarTotal = !expandedPagarTotal;
+          render();
+          return;
+        }
+
+        // Toggle linha "Contas a Receber (Total)"
+        if (target.closest('[data-toggle-receber]')) {
+          console.log('[Toggle] Receber Total clicado');
+          if (grid.dataset.hasReceberManual !== '1') {
+            console.log('[Toggle] Sem receber manuais — não expande');
+            return;
+          }
+          expandedReceber = !expandedReceber;
+          render();
+          return;
+        }
       });
-    });
-    grid.querySelectorAll('[data-toggle-pagar]').forEach(row => {
-      row.addEventListener('click', () => {
-        expandedPagarTotal = !expandedPagarTotal;
-        render();
-      });
-    });
-    grid.querySelectorAll('[data-toggle-cat]').forEach(row => {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('[data-detail]') || e.target.closest('[data-add]')) return;
-        const cid = row.dataset.toggleCat;
-        if (expandedCategories.has(cid)) expandedCategories.delete(cid);
-        else expandedCategories.add(cid);
-        render();
-      });
-    });
+    }
   }
 
   /* ========== Provisões (Firebase) ========== */
