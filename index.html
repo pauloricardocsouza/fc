@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=3.7">
-<link rel="stylesheet" href="fluxo.css?v=3.7">
+<link rel="stylesheet" href="shared.css?v=3.9">
+<link rel="stylesheet" href="fluxo.css?v=3.9">
 <style>
   /* Meta-info chips (data/hora da importação + período) */
   .meta-info {
@@ -166,6 +166,10 @@
           <div class="item"><span class="dot" style="background:var(--danger);"></span>Saída</div>
           <div class="item"><span class="dot" style="background:var(--violet);"></span>Manual</div>
           <div class="item"><span class="dot" style="background:var(--warning);"></span>Com comentário</div>
+          <a href="#painel-saldos" class="goto-saldos-link" title="Ir para o painel de saldos bancários">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Lançar saldos das contas
+          </a>
         </div>
       </div>
       <div class="grid-scroll" id="grid-scroll">
@@ -175,12 +179,12 @@
   </section>
 
   <!-- Painel de Saldos Bancários (Fase 3) -->
-  <section class="saldos-wrap">
+  <section class="saldos-wrap" id="painel-saldos">
     <div class="saldos-card">
       <div class="saldos-head">
         <div>
           <h3>Saldos bancários</h3>
-          <div class="saldos-sub" id="saldos-sub">Clique em um valor para lançar um novo saldo</div>
+          <div class="saldos-sub" id="saldos-sub"><strong>👉 Clique em qualquer valor (R$ 0,00) para lançar o saldo daquela conta.</strong> Aperte Enter para salvar.</div>
         </div>
         <div class="saldos-head-actions">
           <button class="btn btn-ghost btn-sm" id="btn-saldos-historico">Ver histórico</button>
@@ -446,8 +450,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <!-- Módulos do sistema -->
-<script src="shared.js?v=3.7"></script>
-<script src="fluxo.js?v=3.7"></script>
+<script src="shared.js?v=3.9"></script>
+<script src="fluxo.js?v=3.9"></script>
 
 </body>
 </html>

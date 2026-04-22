@@ -160,8 +160,10 @@
 
 .grid-scroll {
   overflow: auto;
-  max-height: calc(100vh - 260px);
-  min-height: 420px;
+  /* Altura aumentada em ~20%: antes era "100vh - 260px", agora "100vh - 130px"
+     para mostrar mais linhas sem precisar rolar a página inteira */
+  max-height: calc(100vh - 130px);
+  min-height: 520px;
 }
 
 /* ============ Tabela da grade ============ */
@@ -218,6 +220,35 @@ table.grid th.first, table.grid td.first {
   min-width: 240px;
   max-width: 300px;
 }
+/* Conteúdo dentro da coluna fixa não pode transbordar:
+   usa div interno com overflow hidden (evita conflito com position: sticky no td) */
+table.grid td.first .row-label {
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+table.grid td.first .row-label .name-group {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+table.grid td.first .row-label .nm {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Para cat-row, .nm está DIRETO em .row-label (sem .name-group):
+   aplicar ellipsis ali também */
+table.grid tbody tr.cat-row td.first .row-label > .nm {
+  display: inline-block;
+  max-width: calc(100% - 30px); /* reserva espaço para o cat-dot */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
 table.grid thead th.first {
   z-index: 4;
   background: var(--brand-black);
@@ -227,7 +258,7 @@ table.grid thead th.first {
 
 /* Totalizadores posicionados antes das linhas de detalhe */
 table.grid tbody tr.total-row td {
-  padding: 11px 12px;
+  padding: 7px 12px;
   text-align: right;
   white-space: nowrap;
   font-weight: 700;
@@ -328,7 +359,7 @@ table.grid tbody tr:hover .row-actions { opacity: 1; }
 
 /* Células de dados */
 table.grid tbody td {
-  padding: 8px 12px;
+  padding: 5px 12px;
   border-bottom: 1px solid var(--border);
   text-align: right;
   white-space: nowrap;
@@ -340,6 +371,7 @@ table.grid tbody td.first {
   font-weight: 500;
   color: var(--text);
   font-size: 13px;
+  padding: 5px 16px;
 }
 table.grid tbody td.weekend { background: var(--surface-3); }
 table.grid tbody td.empty {
@@ -536,13 +568,15 @@ table.grid thead th.sortable:hover .sort-icon {
 .expander {
   display: inline-block;
   font-family: monospace;
-  font-size: 10px;
-  width: 14px;
+  font-size: 16px;
+  width: 20px;
   color: inherit;
-  opacity: 0.7;
+  opacity: 0.85;
   text-align: center;
-  margin-right: 2px;
-  transition: transform 0.1s;
+  margin-right: 4px;
+  line-height: 1;
+  font-weight: 700;
+  transition: transform 0.1s, opacity 0.1s;
 }
 .expander.disabled {
   opacity: 0.2;
@@ -552,12 +586,13 @@ tr[data-toggle-receber]:hover .expander,
 tr[data-toggle-pagar]:hover .expander,
 tr[data-toggle-cat]:hover .expander {
   opacity: 1;
+  transform: scale(1.15);
 }
 
 /* Linha de categoria */
 table.grid tbody tr.cat-row td {
   background: #fafbfd;
-  padding: 9px 12px;
+  padding: 6px 12px;
   text-align: right;
   white-space: nowrap;
   font-weight: 600;
@@ -873,12 +908,88 @@ table.grid tbody tr.sub-row:hover td.first {
   .row-label .row-actions { opacity: 1; }
 }
 @media (max-width: 560px) {
-  .kpi-wrap { grid-template-columns: 1fr; gap: 10px; }
-  .kpi { padding: 14px 16px; }
-  .kpi .value { font-size: 20px; }
-  .ctrl-row { width: 100%; }
-  .ctrl-row input[type="date"] { flex: 1; min-width: 0; }
-  .ctrl-group { width: 100%; }
+  /* Compactar KPIs para 2 colunas (4 KPIs em 2 linhas) */
+  .kpi-wrap {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+  }
+  .kpi {
+    padding: 10px 12px;
+  }
+  .kpi .label {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    margin-bottom: 2px;
+  }
+  .kpi .value {
+    font-size: 16px;
+    line-height: 1.15;
+  }
+  .kpi .sub {
+    font-size: 9.5px;
+    margin-top: 1px;
+  }
+
+  /* Compactar controles em uma linha cada */
+  .controls {
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .ctrl-group label {
+    font-size: 9px;
+    margin-bottom: 2px;
+  }
+  .ctrl-row {
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .ctrl-row input[type="date"] {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+  .ctrl-row .btn {
+    flex-shrink: 0;
+    padding: 7px 10px;
+    font-size: 11.5px;
+  }
+  /* No botão Resetar no mobile, mostrar só o ícone */
+  #btn-reset {
+    padding: 7px 9px !important;
+    font-size: 0 !important;
+  }
+  #btn-reset svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+  /* O "até" entre as datas fica bem curto */
+  .ctrl-row > span { font-size: 10px; flex-shrink: 0; }
+  .ctrl-group { width: 100%; margin-left: 0 !important; }
+
+  /* Botões de ação em uma linha */
+  .ctrl-group:last-child .ctrl-row {
+    flex-wrap: nowrap;
+  }
+  .ctrl-group:last-child .ctrl-row .btn,
+  .ctrl-group:last-child .ctrl-row a.btn {
+    padding: 9px 10px;
+    font-size: 12px;
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .ctrl-group:last-child .ctrl-row .export-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .ctrl-group:last-child .ctrl-row .export-wrap .btn {
+    width: 100%;
+  }
+
   .grid-head { padding: 12px 14px; }
   .grid-head h3 { font-size: 14px; }
   .grid-scroll { max-height: calc(100vh - 360px); }
@@ -1058,6 +1169,11 @@ table.grid tbody tr.sub-row:hover td.first {
   transition: all 0.15s;
   min-width: 90px;
   text-align: right;
+  /* Garantir que toque funcione no iOS */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(28, 167, 236, 0.2);
+  user-select: none;
+  -webkit-user-select: none;
 }
 .saldo-item .bank-valor:hover {
   border-color: var(--accent);
@@ -1205,3 +1321,47 @@ table.grid tbody tr.sub-row:hover td.first {
   line-height: 1.5;
 }
 .form-recurrence-preview b { color: var(--text); }
+
+/* ========== Link "Lançar saldos das contas" no header da grade ========== */
+.goto-saldos-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+.goto-saldos-link:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.goto-saldos-link svg { flex-shrink: 0; }
+
+/* Destaque ao painel quando navegado via âncora */
+#painel-saldos {
+  scroll-margin-top: 20px;
+}
+#painel-saldos:target .saldos-card {
+  animation: highlightPainel 1.6s ease-out;
+}
+@keyframes highlightPainel {
+  0%   { box-shadow: 0 0 0 0 rgba(28, 167, 236, 0.6); border-color: var(--accent); }
+  50%  { box-shadow: 0 0 0 8px rgba(28, 167, 236, 0); border-color: var(--accent); }
+  100% { box-shadow: 0 0 0 0 rgba(28, 167, 236, 0); border-color: var(--border); }
+}
+
+@media (max-width: 720px) {
+  .goto-saldos-link {
+    margin-left: 0;
+    margin-top: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+}
