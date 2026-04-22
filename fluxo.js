@@ -832,19 +832,24 @@
     // Expõe flags de render atual no dataset do grid (acessível pelo delegate)
     grid.dataset.hasReceberManual = hasReceberManual ? '1' : '0';
 
-    // Delegação de eventos no grid — mais robusta que attach direto em cada row
-    // (evita problemas se os listeners forem perdidos ou não-atribuídos em alguma row)
-    if (!grid._toggleDelegated) {
-      grid._toggleDelegated = true;
-      grid.addEventListener('click', (e) => {
+    // Delegação de eventos no grid — registra no TABLE pai (não na tabela do grid)
+    // para ser mais robusto. Só registra uma vez por sessão.
+    const gridScroll = document.getElementById('grid-scroll');
+    if (gridScroll && !gridScroll._toggleDelegated) {
+      gridScroll._toggleDelegated = true;
+      console.log('[Toggle] Registrando listener delegate no #grid-scroll');
+
+      gridScroll.addEventListener('click', (e) => {
         const target = e.target;
-        const td = target.closest('td');
-        // Ignora clique em células de valor (elas têm handler próprio)
-        if (td && (td.hasAttribute('data-detail') || td.hasAttribute('data-add'))) return;
+        console.log('[Toggle] Clique detectado em:', target.tagName, target.className || '(sem classe)');
 
         // Toggle categoria (mais específico primeiro)
         const catRow = target.closest('[data-toggle-cat]');
         if (catRow) {
+          // Verifica se clicou numa célula de valor dessa categoria
+          const td = target.closest('td');
+          // Nas cat-rows, os tds de valor têm class "cat-cell" (não são clicáveis individualmente)
+          // Então qualquer clique na cat-row deve togglear
           const cid = catRow.dataset.toggleCat;
           console.log('[Toggle] Categoria clicada:', cid);
           if (expandedCategories.has(cid)) expandedCategories.delete(cid);
@@ -854,7 +859,8 @@
         }
 
         // Toggle linha "Contas a Pagar (Total)"
-        if (target.closest('[data-toggle-pagar]')) {
+        const pagarRow = target.closest('[data-toggle-pagar]');
+        if (pagarRow) {
           console.log('[Toggle] Pagar Total clicado');
           expandedPagarTotal = !expandedPagarTotal;
           render();
@@ -862,8 +868,15 @@
         }
 
         // Toggle linha "Contas a Receber (Total)"
-        if (target.closest('[data-toggle-receber]')) {
+        const receberRow = target.closest('[data-toggle-receber]');
+        if (receberRow) {
           console.log('[Toggle] Receber Total clicado');
+          // Ignora clique em células com data-detail ou data-add (cliques em valores reais)
+          const td = target.closest('td');
+          if (td && (td.hasAttribute('data-detail') || td.hasAttribute('data-add'))) {
+            console.log('[Toggle] Clique em célula de valor — ignorado');
+            return;
+          }
           if (grid.dataset.hasReceberManual !== '1') {
             console.log('[Toggle] Sem receber manuais — não expande');
             return;
@@ -872,6 +885,8 @@
           render();
           return;
         }
+
+        console.log('[Toggle] Clique fora de zona togglable');
       });
     }
   }
