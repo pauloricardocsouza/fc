@@ -473,11 +473,6 @@
     const e = document.getElementById('filter-end').value;
     filteredDates = processed.allDates.filter(k => k >= s && k <= e);
 
-    // Preserva posição de scroll (horizontal e vertical) da grade para não "saltar" quando vier update
-    const scrollEl = document.getElementById('grid-scroll');
-    const prevScrollLeft = scrollEl?.scrollLeft || 0;
-    const prevScrollTop = scrollEl?.scrollTop || 0;
-
     if (!filteredDates.length) {
       document.getElementById('grid').innerHTML =
         '<tbody><tr><td style="padding:40px;text-align:center;color:var(--text-muted)">Nenhum dado no período selecionado.</td></tr></tbody>';
@@ -626,6 +621,11 @@
     const parts = [];
     const groups = groupVendorsByCategory(activeVendors);
     const sortedGroups = sortCategoryGroups(groups, sortState);
+
+    // Preserva posição de scroll (horizontal e vertical) da grade antes do re-render
+    const scrollEl = document.getElementById('grid-scroll');
+    const prevScrollLeft = scrollEl?.scrollLeft || 0;
+    const prevScrollTop = scrollEl?.scrollTop || 0;
 
     // Thead
     parts.push('<thead><tr>');
