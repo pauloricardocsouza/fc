@@ -113,14 +113,20 @@
     // Garante que a categoria nativa existe
     F.DB.ensureDefaultCategory().catch(err => console.warn('Categoria padrão:', err));
 
-    F.state.fbDB.ref('filadelfia/comentarios').on('value', snap => {
+    // Assinatura de comentários (usa listener direto pois precisamos do snap completo)
+    const commentsRef = F.state.fbDB.ref('filadelfia/comentarios');
+    const commentsHandler = snap => {
       commentsCache = snap.val() || {};
       if (processed) render();
       if (currentDetail) refreshDetailComments();
-    }, err => {
+    };
+    const commentsErrHandler = err => {
       console.error('Firebase comments error:', err);
       F.UI.updateSyncBadge('offline', 'Erro de conexão');
-    });
+    };
+    commentsRef.on('value', commentsHandler, commentsErrHandler);
+    // Adiciona ao unsubscribes para cleanup em nova subscribeAll (evita leak / listener dobrado)
+    unsubscribes.push(() => commentsRef.off('value', commentsHandler));
   }
 
   /* ========== Índice ========== */
@@ -327,11 +333,13 @@
       try {
         const vendorUpper = vendor ? vendor.toUpperCase() : null;
         if (detail === 'pagar' && vendorUpper) {
-          // Verifica se o fornecedor existe com esse nome normalizado
-          const exists = processed.vendors.some(v => v.name === vendorUpper || v.name.replace(/_/g, ' ') === vendorUpper);
-          if (exists) {
-            const realName = processed.vendors.find(v => v.name === vendorUpper || v.name.replace(/_/g, ' ') === vendorUpper)?.name;
-            openDetail('pagar', date, realName);
+          // Normaliza qualquer separador (ponto, underscore, múltiplos espaços) em espaço único
+          // para comparar com tolerância, já que o parse da key perde os pontos originais.
+          const normalize = s => String(s || '').toUpperCase().replace(/[._]/g, ' ').replace(/\s+/g, ' ').trim();
+          const target = normalize(vendorUpper);
+          const match = processed.vendors.find(v => normalize(v.name) === target);
+          if (match) {
+            openDetail('pagar', date, match.name);
           } else {
             F.UI.showToast('Fornecedor não encontrado no período atual', 'error');
           }
@@ -464,6 +472,11 @@
     const s = document.getElementById('filter-start').value;
     const e = document.getElementById('filter-end').value;
     filteredDates = processed.allDates.filter(k => k >= s && k <= e);
+
+    // Preserva posição de scroll (horizontal e vertical) da grade para não "saltar" quando vier update
+    const scrollEl = document.getElementById('grid-scroll');
+    const prevScrollLeft = scrollEl?.scrollLeft || 0;
+    const prevScrollTop = scrollEl?.scrollTop || 0;
 
     if (!filteredDates.length) {
       document.getElementById('grid').innerHTML =
@@ -781,6 +794,15 @@
 
     grid.innerHTML = parts.join('');
 
+    // Restaura posição de scroll após re-render (evita "pulo" quando update vem via Firebase)
+    if (scrollEl && (prevScrollLeft > 0 || prevScrollTop > 0)) {
+      // requestAnimationFrame garante que o layout foi aplicado antes de restaurar
+      requestAnimationFrame(() => {
+        scrollEl.scrollLeft = prevScrollLeft;
+        scrollEl.scrollTop = prevScrollTop;
+      });
+    }
+
     // Handlers
     grid.querySelectorAll('[data-sort-col]').forEach(th => {
       th.addEventListener('click', () => toggleSort(th.dataset.sortCol));
@@ -889,21 +911,36 @@
     const end = F.Dates.parseDateKey(endStr);
     if (!start || !end || end < start) return [];
     const out = [];
+    const originalDay = start.getDate(); // Preserva o "dia alvo" (ex: 31) para que cada mês use esse dia ou o último dia se não existir
     let cur = new Date(start);
     // Hard limit para evitar loops gigantes (10 anos de semanal = 520 = OK)
     let safetyLimit = 600;
+
+    // Helper: avança para o próximo mês/ano preservando o dia original, sem transbordar
+    function advanceMonth(d, monthsToAdd) {
+      const y = d.getFullYear();
+      const m = d.getMonth() + monthsToAdd;
+      // Último dia do mês alvo
+      const lastDayOfTarget = new Date(y, m + 1, 0).getDate();
+      // Se o dia original cabe no novo mês, usa ele; senão, usa o último dia do novo mês
+      const targetDay = Math.min(originalDay, lastDayOfTarget);
+      return new Date(y, m, targetDay);
+    }
+
     while (cur <= end && safetyLimit-- > 0) {
       out.push(F.Dates.dateKey(cur));
       if (freq === 'semanal') cur = F.Dates.addDays(cur, 7);
       else if (freq === 'quinzenal') cur = F.Dates.addDays(cur, 14);
-      else if (freq === 'mensal') cur = new Date(cur.getFullYear(), cur.getMonth() + 1, cur.getDate());
-      else if (freq === 'anual') cur = new Date(cur.getFullYear() + 1, cur.getMonth(), cur.getDate());
+      else if (freq === 'mensal') cur = advanceMonth(cur, 1);
+      else if (freq === 'anual') cur = advanceMonth(cur, 12);
       else break;
     }
     return out;
   }
 
+  let _salvandoProvision = false;
   async function saveProvision() {
+    if (_salvandoProvision) return; // Guard contra double submit
     const tipo = document.getElementById('form-type-toggle').querySelector('.active').dataset.type;
     const entidade = document.getElementById('form-entity').value.trim().toUpperCase();
     const dateVal = document.getElementById('form-date').value;
@@ -939,6 +976,7 @@
     }
 
     F.UI.showLoading(recurChecked ? `Criando ${datasParaCriar.length} lançamentos…` : 'Salvando…');
+    _salvandoProvision = true;
     try {
       // Gera um seriesId único para agrupar todos os lançamentos da mesma recorrência
       const seriesId = recurChecked
@@ -965,6 +1003,7 @@
       F.UI.showToast('Erro ao salvar: ' + err.message, 'error');
     } finally {
       F.UI.hideLoading();
+      _salvandoProvision = false;
     }
   }
 
@@ -1030,7 +1069,10 @@
     if (document.getElementById('main-content').classList.contains('hidden')) {
       document.getElementById('empty-state').classList.add('hidden');
       document.getElementById('main-content').classList.remove('hidden');
-      setupControls();
+      if (!_initDone) {
+        setupControls();
+        _initDone = true;
+      }
       updateHeaderInfo();
     }
     render();
@@ -1723,6 +1765,13 @@
     const wrap = document.querySelector('.saldos-wrap');
     if (!wrap) return;
 
+    // Se há um saldo em edição ativa, NÃO re-renderiza (senão perde o input que o usuário está digitando)
+    const emEdicao = wrap.querySelector('[data-editing="true"]');
+    if (emEdicao) {
+      console.log('[Saldos] Render pulado: saldo em edição');
+      return;
+    }
+
     const bancosAtivos = Object.entries(bancos).filter(([id, b]) => b && !b.arquivado);
 
     // Painel SEMPRE visível (permite criar primeiros bancos)
@@ -2046,12 +2095,119 @@
     }
   }
 
+  /* ========== Modal: Lançar saldo (via botão dedicado) ========== */
+  function openLancarSaldo() {
+    if (!F.Auth.isEditor()) {
+      F.UI.showToast('Apenas editores e admins podem lançar saldos', 'warning');
+      return;
+    }
+    const modal = document.getElementById('lancar-saldo-modal');
+    if (!modal) return;
+
+    // Popular dropdown de bancos (agrupados por tipo)
+    const select = document.getElementById('lancar-saldo-banco');
+    const bancosAtivos = Object.entries(bancos)
+      .filter(([id, b]) => b && !b.arquivado)
+      .sort(([, a], [, b]) => (a.ordem || 999) - (b.ordem || 999));
+
+    if (!bancosAtivos.length) {
+      F.UI.showToast('Nenhuma conta cadastrada. Clique em "+ Nova conta" primeiro.', 'warning');
+      return;
+    }
+
+    const livres = bancosAtivos.filter(([, b]) => b.tipo === 'livre');
+    const vinculadas = bancosAtivos.filter(([, b]) => b.tipo === 'vinculada');
+    const atuais = F.DB.computeCurrentSaldos(saldosHistorico);
+
+    let html = '<option value="">Selecione uma conta…</option>';
+    if (livres.length) {
+      html += '<optgroup label="Contas livres">';
+      livres.forEach(([id, b]) => {
+        const saldoAtual = atuais[id];
+        const hint = saldoAtual ? ' — atual: ' + F.Fmt.fmtMoney(saldoAtual.valor) : ' — sem saldo';
+        html += `<option value="${F.escapeHTML(id)}">${F.escapeHTML(b.nome)}${F.escapeHTML(hint)}</option>`;
+      });
+      html += '</optgroup>';
+    }
+    if (vinculadas.length) {
+      html += '<optgroup label="Vinculadas / Garantidas">';
+      vinculadas.forEach(([id, b]) => {
+        const saldoAtual = atuais[id];
+        const hint = saldoAtual ? ' — atual: ' + F.Fmt.fmtMoney(saldoAtual.valor) : ' — sem saldo';
+        html += `<option value="${F.escapeHTML(id)}">${F.escapeHTML(b.nome)}${F.escapeHTML(hint)}</option>`;
+      });
+      html += '</optgroup>';
+    }
+    select.innerHTML = html;
+
+    document.getElementById('lancar-saldo-valor').value = '';
+    document.getElementById('lancar-saldo-preview').style.display = 'none';
+    modal.classList.add('open');
+    setTimeout(() => select.focus(), 100);
+  }
+
+  function closeLancarSaldo() {
+    const modal = document.getElementById('lancar-saldo-modal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function updateLancarSaldoPreview() {
+    const bankId = document.getElementById('lancar-saldo-banco').value;
+    const raw = document.getElementById('lancar-saldo-valor').value.trim();
+    const preview = document.getElementById('lancar-saldo-preview');
+    if (!bankId || !raw) {
+      preview.style.display = 'none';
+      return;
+    }
+    const val = parseValueFlex(raw);
+    if (!Number.isFinite(val)) {
+      preview.style.display = 'none';
+      return;
+    }
+    const banco = bancos[bankId];
+    if (!banco) { preview.style.display = 'none'; return; }
+    preview.style.display = 'block';
+    preview.innerHTML = `Você vai lançar <b>${F.Fmt.fmtMoney(val)}</b> como saldo atual de <b>${F.escapeHTML(banco.nome)}</b>.`;
+  }
+
+  let _salvandoSaldo = false;
+  async function salvarLancarSaldo() {
+    if (_salvandoSaldo) return; // Guard contra double submit (Enter + Click simultâneos)
+    const bankId = document.getElementById('lancar-saldo-banco').value;
+    const raw = document.getElementById('lancar-saldo-valor').value.trim();
+    if (!bankId) { F.UI.showToast('Selecione uma conta', 'warning'); return; }
+    if (!raw) { F.UI.showToast('Informe o valor do saldo', 'warning'); return; }
+    const val = parseValueFlex(raw);
+    if (!Number.isFinite(val)) { F.UI.showToast('Valor inválido', 'error'); return; }
+    _salvandoSaldo = true;
+    try {
+      F.UI.showLoading('Salvando saldo…');
+      await F.DB.createSaldo(bankId, val);
+      F.UI.showToast('Saldo lançado', 'success');
+      closeLancarSaldo();
+    } catch (err) {
+      F.UI.showToast('Erro: ' + err.message, 'error');
+    } finally {
+      F.UI.hideLoading();
+      _salvandoSaldo = false;
+    }
+  }
+
   /* ========== Setup dos handlers de saldos (chamado no init) ========== */
   function setupSaldosHandlers() {
     document.getElementById('btn-saldos-historico')?.addEventListener('click', openSaldosHistorico);
     document.getElementById('btn-saldos-novo-banco')?.addEventListener('click', openNovoBanco);
     document.getElementById('btn-salvar-novo-banco')?.addEventListener('click', salvarNovoBanco);
     document.getElementById('saldos-hist-banco-filter')?.addEventListener('change', renderSaldosHistorico);
+
+    // Lançar saldo (modal novo)
+    document.getElementById('btn-lancar-saldo')?.addEventListener('click', openLancarSaldo);
+    document.getElementById('btn-salvar-lancar-saldo')?.addEventListener('click', salvarLancarSaldo);
+    document.getElementById('lancar-saldo-banco')?.addEventListener('change', updateLancarSaldoPreview);
+    document.getElementById('lancar-saldo-valor')?.addEventListener('input', updateLancarSaldoPreview);
+    document.getElementById('lancar-saldo-valor')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); salvarLancarSaldo(); }
+    });
 
     // Fechar modais
     document.querySelectorAll('[data-close="saldos-historico"]').forEach(el => {
@@ -2060,6 +2216,9 @@
     document.querySelectorAll('[data-close="novo-banco"]').forEach(el => {
       el.addEventListener('click', closeNovoBanco);
     });
+    document.querySelectorAll('[data-close="lancar-saldo"]').forEach(el => {
+      el.addEventListener('click', closeLancarSaldo);
+    });
     // Fechar ao clicar fora do modal (no overlay)
     document.getElementById('saldos-historico-modal')?.addEventListener('click', (e) => {
       if (e.target.id === 'saldos-historico-modal') closeSaldosHistorico();
@@ -2067,22 +2226,34 @@
     document.getElementById('novo-banco-modal')?.addEventListener('click', (e) => {
       if (e.target.id === 'novo-banco-modal') closeNovoBanco();
     });
+    document.getElementById('lancar-saldo-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'lancar-saldo-modal') closeLancarSaldo();
+    });
 
     // ESC fecha modais
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       const histOpen = document.getElementById('saldos-historico-modal')?.classList.contains('open');
       const novoOpen = document.getElementById('novo-banco-modal')?.classList.contains('open');
+      const lancOpen = document.getElementById('lancar-saldo-modal')?.classList.contains('open');
       if (histOpen) closeSaldosHistorico();
       if (novoOpen) closeNovoBanco();
+      if (lancOpen) closeLancarSaldo();
     });
   }
 
   // Chama setup dos handlers quando DOM estiver pronto (complementar ao init principal)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupSaldosHandlers);
-  } else {
+  // Flag para evitar registro duplo de event listeners (que causaria handler rodar 2x)
+  let _saldosHandlersSetup = false;
+  function setupSaldosHandlersOnce() {
+    if (_saldosHandlersSetup) return;
+    _saldosHandlersSetup = true;
     setupSaldosHandlers();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupSaldosHandlersOnce);
+  } else {
+    setupSaldosHandlersOnce();
   }
 
   document.addEventListener('DOMContentLoaded', init);

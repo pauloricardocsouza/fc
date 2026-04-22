@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v3.9';
+  const APP_VERSION = 'v4.2';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -508,9 +508,15 @@
   }
 
   /* ========== Formatters ========== */
-  const fmtMoney = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const fmtMoneyShort = v => Number(v || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  const fmtCellMoney = v => Math.abs(v) < 0.005 ? '–' : fmtMoneyShort(v);
+  const fmtMoney = v => {
+    const n = Number(v);
+    return (Number.isFinite(n) ? n : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+  const fmtMoneyShort = v => {
+    const n = Number(v);
+    return (Number.isFinite(n) ? n : 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+  const fmtCellMoney = v => Math.abs(Number(v) || 0) < 0.005 ? '–' : fmtMoneyShort(v);
   const fmtFullDate = d => d.toLocaleDateString('pt-BR');
   const fmtHeaderDate = d => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
   const weekdayShort = d => ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()];

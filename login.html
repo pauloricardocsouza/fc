@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=3.9">
+<link rel="stylesheet" href="shared.css?v=4.2">
 <style>
   body {
     min-height: 100vh;
@@ -248,23 +248,36 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-<script src="shared.js?v=3.9"></script>
+<script src="shared.js?v=4.2"></script>
 
 <script>
 (function() {
   'use strict';
   const F = window.Filadelfia;
 
+  // Valida returnTo: apenas paths relativos internos (evita open redirect / XSS via javascript:)
+  function safeReturnUrl(raw) {
+    if (!raw) return 'index.html';
+    // Bloqueia URLs absolutas, esquemas perigosos, tentativas de sair da origem
+    if (/^[a-z]+:/i.test(raw)) return 'index.html'; // javascript:, http:, //cdn.site, etc
+    if (raw.startsWith('//')) return 'index.html';
+    if (raw.startsWith('/')) return 'index.html'; // paths absolutos (poderia ser trocado por outra página)
+    // Aceita apenas arquivos .html locais
+    if (!/^[a-zA-Z0-9_-]+\.html(\?[a-zA-Z0-9_=&%\-\.]*)?$/.test(raw)) return 'index.html';
+    return raw;
+  }
+
   // Se Firebase não configurado, mostra aviso
   if (!F.IS_FIREBASE_CONFIGURED) {
     document.getElementById('demo-warning').classList.remove('hidden');
   } else {
     F.initFirebase();
+
     // Se já estiver logado, redireciona direto
     F.state.fbAuth.onAuthStateChanged(user => {
       if (user) {
         const params = new URLSearchParams(location.search);
-        const returnTo = params.get('return') || 'index.html';
+        const returnTo = safeReturnUrl(params.get('return'));
         location.href = returnTo;
       }
     });
@@ -332,7 +345,7 @@
     try {
       await F.Auth.login(email, password, remember);
       const params = new URLSearchParams(location.search);
-      const returnTo = params.get('return') || 'index.html';
+      const returnTo = safeReturnUrl(params.get('return'));
       location.href = returnTo;
     } catch (err) {
       setLoading(false);

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=3.9">
+<link rel="stylesheet" href="shared.css?v=4.2">
 <style>
   .period-selector {
     margin-top: 16px;
@@ -788,7 +788,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
-<script src="shared.js?v=3.9"></script>
+<script src="shared.js?v=4.2"></script>
 
 <script>
 (function() {
@@ -811,14 +811,45 @@
     F.UI.renderTopbar('dashboard');
 
     loadData();
+
+    // Assinar lançamentos do Firebase (fonte atual — localStorage é legado)
+    if (F.IS_FIREBASE_CONFIGURED && F.DB.dbReady()) {
+      F.DB.subscribeLancamentos(data => {
+        // Converter objeto { id: {...} } em array com id
+        provisions = Object.entries(data || {}).map(([id, v]) => ({ id, ...v }));
+        if (hasData()) render();
+        else {
+          document.getElementById('dash-empty-wrap').style.display = 'none';
+          document.getElementById('dash-content').style.display = '';
+          if (!_controlsReady) {
+            setupControls();
+            applyPreset('7');
+            _controlsReady = true;
+          }
+        }
+      });
+      F.DB.subscribeHiddenTitles(data => {
+        deletedImported = data || {};
+        if (hasData()) render();
+      });
+    }
+
     if (!hasData()) {
+      // Se veio algum dado via Firebase em seguida, init será "reaproveitado"
       document.getElementById('dash-empty-wrap').style.display = 'grid';
       document.getElementById('dash-content').style.display = 'none';
+      // mas ainda assim inicializa controls se já temos dados
+      if (hasData()) {
+        setupControls();
+        applyPreset('7');
+        _controlsReady = true;
+      }
       return;
     }
 
     setupControls();
     applyPreset('7');
+    _controlsReady = true;
 
     // Escutar categorias e atribuições do Firebase (atualiza Top Categorias automaticamente)
     if (F.IS_FIREBASE_CONFIGURED && F.DB.dbReady()) {
@@ -833,10 +864,13 @@
     }
   }
 
+  let _controlsReady = false;
+
   function loadData() {
     dataStore = F.Storage.safeGetJSON(F.KEYS.DATA, null);
-    provisions = F.Storage.safeGetJSON(F.KEYS.PROVISIONS, []);
-    deletedImported = F.Storage.safeGetJSON(F.KEYS.DELETED_IMPORTED, {});
+    // provisions virão via Firebase subscribe; iniciamos vazio
+    provisions = [];
+    deletedImported = {};
   }
 
   function hasData() {
