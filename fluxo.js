@@ -2111,7 +2111,27 @@
       .sort(([, a], [, b]) => (a.ordem || 999) - (b.ordem || 999));
 
     if (!bancosAtivos.length) {
-      F.UI.showToast('Nenhuma conta cadastrada. Clique em "+ Nova conta" primeiro.', 'warning');
+      // Tenta criar os 19 bancos padrão agora mesmo (último recurso)
+      F.UI.showLoading('Cadastrando contas bancárias padrão…');
+      F.DB.ensureDefaultBanks()
+        .then(() => {
+          F.UI.hideLoading();
+          // O subscribe do Firebase vai disparar e atualizar "bancos".
+          // Esperar 500ms para o Firebase sincronizar antes de reabrir.
+          setTimeout(() => {
+            if (Object.keys(bancos).length > 0) {
+              F.UI.showToast('Contas cadastradas. Abrindo modal…', 'success');
+              openLancarSaldo(); // reabre
+            } else {
+              F.UI.showToast('Não foi possível cadastrar as contas. Abra o console (F12) e verifique erros, ou use o botão "+ Nova conta" no painel.', 'error');
+            }
+          }, 700);
+        })
+        .catch(err => {
+          F.UI.hideLoading();
+          console.error(err);
+          F.UI.showToast('Erro ao cadastrar contas: ' + err.message + '. Verifique as rules do Firebase (veja LEIA-ME.md).', 'error');
+        });
       return;
     }
 

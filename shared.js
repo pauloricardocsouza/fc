@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v4.2';
+  const APP_VERSION = 'v4.3';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -1543,35 +1543,60 @@
 
   // Chamado pela página do fluxo ao inicializar; se já existir, não faz nada
   async function ensureDefaultBanks() {
-    if (!state.fbDB) return;
+    if (!state.fbDB) {
+      console.log('[Bancos] Firebase não disponível');
+      return;
+    }
     try {
       const snap = await dbRef('bancos').once('value');
       const existing = snap.val();
-      if (existing && Object.keys(existing).length > 0) {
-        console.log('[Bancos] Já existem', Object.keys(existing).length, 'bancos cadastrados.');
+      const existingCount = existing ? Object.keys(existing).length : 0;
+
+      console.log('[Bancos] Contas existentes no Firebase:', existingCount);
+      console.log('[Bancos] Role do usuário atual:', state.user?.role || '(ainda não definido)');
+
+      // Se já tem pelo menos uma conta, não mexemos (evita re-criar bancos arquivados)
+      if (existingCount > 0) {
+        console.log('[Bancos] Já existem bancos cadastrados, não vou criar defaults.');
         return;
       }
 
       // Só cria se usuário pode escrever (evita erro de permissão para viewer)
+      if (!state.user || !state.user.uid) {
+        console.warn('[Bancos] Usuário ainda não está definido — tente novamente em alguns segundos.');
+        return;
+      }
       if (!isEditor()) {
-        console.log('[Bancos] Usuário não é editor, não pode criar bancos padrão.');
+        console.warn('[Bancos] Usuário atual é viewer ou não tem role — não pode criar bancos padrão.');
         return;
       }
 
       console.log('[Bancos] Criando', DEFAULT_BANKS.length, 'bancos padrão…');
-      const updates = {};
-      DEFAULT_BANKS.forEach(b => {
+
+      // Abordagem mais resistente: criar um-a-um. Se um falhar, os outros continuam.
+      let ok = 0, fail = 0;
+      for (const b of DEFAULT_BANKS) {
         const id = 'bank_' + b.nome.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-        updates[id] = {
-          ...b,
-          arquivado: false,
-          createdBy: state.user?.uid || null,
-          createdByName: state.user?.displayName || 'Sistema',
-          createdAt: firebase.database.ServerValue.TIMESTAMP,
-        };
-      });
-      await dbRef('bancos').update(updates);
-      console.log('[Bancos] ✓ Criados com sucesso');
+        try {
+          await dbRef(`bancos/${id}`).set({
+            nome: b.nome,
+            tipo: b.tipo,
+            ordem: b.ordem || 999,
+            arquivado: false,
+            createdBy: state.user.uid,
+            createdByName: state.user.displayName || state.user.email || 'Sistema',
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+          });
+          ok++;
+        } catch (err) {
+          fail++;
+          console.warn(`[Bancos] Falha ao criar "${b.nome}":`, err.message);
+        }
+      }
+      console.log(`[Bancos] ✓ Criados ${ok} de ${DEFAULT_BANKS.length} (${fail} falharam)`);
+      if (ok === 0 && fail > 0) {
+        throw new Error('Nenhum banco foi criado — verifique as rules do Firebase');
+      }
     } catch (err) {
       console.error('[Bancos] Erro ao criar bancos padrão:', err);
       throw err;
