@@ -2442,13 +2442,27 @@
     if (neg) str = str.slice(1);
     // Remove R$ se houver
     str = str.replace(/R\$\s*/i, '');
-    // Se tem vírgula e ponto: ponto = milhar, vírgula = decimal
-    if (str.includes(',') && str.includes('.')) {
+    // Se tem vírgula: vírgula é o decimal (padrão BR), pontos são milhar
+    if (str.includes(',')) {
       str = str.replace(/\./g, '').replace(',', '.');
-    } else if (str.includes(',')) {
-      str = str.replace(',', '.');
+    } else if (str.includes('.')) {
+      // Só pontos. No padrão BR, ponto é separador de milhar.
+      // Heurística: se houver MAIS de um ponto, são todos milhar.
+      // Se houver UM ponto e a parte após o ponto for de exatamente 3 dígitos
+      // (ex: "1.000", "12.500"), trata como milhar.
+      // Caso contrário (ex: "1.5", "1.50", "1.234"), trata como decimal (formato US).
+      const pontos = (str.match(/\./g) || []).length;
+      if (pontos > 1) {
+        str = str.replace(/\./g, '');
+      } else {
+        const partes = str.split('.');
+        if (partes[1] && partes[1].length === 3) {
+          // milhar: "1.000" -> 1000
+          str = partes.join('');
+        }
+        // senão deixa como está (decimal estilo US)
+      }
     }
-    // Se não tem separador decimal e tem mais de 2 dígitos no fim, assume que é inteiro
     const n = parseFloat(str);
     if (!Number.isFinite(n)) return NaN;
     return neg ? -n : n;
