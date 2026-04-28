@@ -639,6 +639,7 @@
         <a href="comentarios.html" ${activePage === 'comentarios' ? 'class="active"' : ''}>Comentários</a>
         <a href="categorias.html" ${activePage === 'categorias' ? 'class="active"' : ''}>Categorias</a>
         <a href="processamento.html" ${activePage === 'processamento' ? 'class="active"' : ''}>Processamento</a>
+        <a href="ajuda.html" ${activePage === 'ajuda' ? 'class="active"' : ''}>Ajuda</a>
         ${configLink}
       </nav>
       <div class="topbar-meta">

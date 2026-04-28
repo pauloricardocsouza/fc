@@ -65,15 +65,26 @@
   }
 
   /* ========== Parse de cellKey ==========
+  /* =========================================
+     Parse da cellKey
      Formato: 'pagar__FORNECEDOR__YYYY-MM-DD' ou 'receber__YYYY-MM-DD'
+
+     Atenção: o FORNECEDOR pode conter _ (nomes como "BANCO DO BRASIL S.A."
+     tiveram pontos convertidos em _ na geração), resultando em ___ (três ou mais
+     underscores consecutivos) que quebrariam um split ingênuo.
+     Por isso usamos regex para extrair a data do fim e o fornecedor entre.
      ========================================= */
   function parseCellKey(cellKey) {
-    const parts = cellKey.split('__');
-    if (parts[0] === 'receber' && parts.length === 2) {
-      return { tipo: 'receber', data: parts[1] };
-    }
-    if (parts[0] === 'pagar' && parts.length === 3) {
-      return { tipo: 'pagar', fornecedor: parts[1].replace(/_/g, ' '), data: parts[2] };
+    if (!cellKey) return { tipo: 'desconhecido', raw: cellKey };
+    // Caso 'receber__YYYY-MM-DD'
+    const mReceber = cellKey.match(/^receber__(\d{4}-\d{2}-\d{2})$/);
+    if (mReceber) return { tipo: 'receber', data: mReceber[1] };
+    // Caso 'pagar__FORNECEDOR__YYYY-MM-DD' (fornecedor pode ter _ internos)
+    const mPagar = cellKey.match(/^pagar__(.+)__(\d{4}-\d{2}-\d{2})$/);
+    if (mPagar) {
+      // Converter _ em espaço é heurístico — pode deformar nomes com pontos originais.
+      // Mantemos a estratégia existente, porém sem causar split quebrado.
+      return { tipo: 'pagar', fornecedor: mPagar[1].replace(/_/g, ' ').replace(/\s+/g, ' ').trim(), data: mPagar[2] };
     }
     return { tipo: 'desconhecido', raw: cellKey };
   }

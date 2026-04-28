@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filadelfia — Ajuda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css?v=4.6">
+
+<style>
+  .ajuda-wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .ajuda-hero {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+  .ajuda-hero h1 {
+    font-family: 'Archivo', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0 0 12px;
+    color: var(--text);
+  }
+  .ajuda-hero p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .ajuda-toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+  .ajuda-toc-title {
+    font-family: 'Archivo', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .ajuda-toc ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+  }
+  .ajuda-toc ul li a {
+    display: block;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.15s;
+  }
+  .ajuda-toc ul li a:hover {
+    background: var(--surface-2);
+    color: var(--accent);
+  }
+
+  .ajuda-section {
+    margin-bottom: 48px;
+    scroll-margin-top: 80px;
+  }
+  .ajuda-section h2 {
+    font-family: 'Archivo', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ajuda-section .section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--accent-bg);
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .ajuda-section .section-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0 0 20px 48px;
+  }
+
+  .ajuda-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .ajuda-card h3 {
+    font-family: 'Archivo', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: var(--text);
+  }
+  .ajuda-card p {
+    margin: 0 0 12px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .ajuda-card p:last-child { margin-bottom: 0; }
+
+  .ajuda-card ul, .ajuda-card ol {
+    margin: 8px 0 12px;
+    padding-left: 22px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+  .ajuda-card li { margin-bottom: 4px; }
+
+  .ajuda-card code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  .ajuda-card .key {
+    display: inline-block;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+  }
+
+  .tip {
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    color: var(--accent-text);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .tip strong { font-weight: 700; }
+
+  .warn {
+    background: #fff4e5;
+    border: 1px solid #f5a623;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    color: #5a3a00;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  table.ajuda-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  table.ajuda-table th, table.ajuda-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.ajuda-table th {
+    background: var(--surface-2);
+    font-family: 'Archivo', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  table.ajuda-table code {
+    font-size: 11px;
+  }
+
+  .role-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 6px;
+  }
+  .role-pill.admin { background: #fecaca; color: #7f1d1d; }
+  .role-pill.editor { background: #dbeafe; color: #1e40af; }
+  .role-pill.viewer { background: #e2e8f0; color: #334155; }
+
+  .back-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: transform 0.15s;
+  }
+  .back-top:hover { transform: translateY(-2px); }
+  .back-top.visible { display: inline-flex; }
+
+  @media (max-width: 720px) {
+    .ajuda-wrap { padding: 20px 16px 60px; }
+    .ajuda-hero { padding: 24px; }
+    .ajuda-hero h1 { font-size: 22px; }
+    .ajuda-section h2 { font-size: 18px; }
+    .ajuda-section .section-sub { margin-left: 0; margin-top: 8px; }
+    .ajuda-toc ul { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+
+<body>
+<div class="topbar" id="topbar"></div>
+
+<div class="ajuda-wrap">
+  <div class="ajuda-hero">
+    <h1>Central de ajuda do Filadelfia</h1>
+    <p>Guia completo para usar o sistema de fluxo de caixa e gestão financeira. Aqui você encontra uma explicação de cada página, cada botão e os fluxos de trabalho principais. Se ficar com dúvida, essa página é sempre o primeiro lugar para consultar.</p>
+  </div>
+
+  <nav class="ajuda-toc">
+    <div class="ajuda-toc-title">Conteúdo</div>
+    <ul>
+      <li><a href="#visao-geral">Visão geral</a></li>
+      <li><a href="#perfis">Perfis de acesso</a></li>
+      <li><a href="#fluxo">Fluxo de Caixa</a></li>
+      <li><a href="#saldos">Saldos bancários</a></li>
+      <li><a href="#lancamentos">Lançamentos manuais</a></li>
+      <li><a href="#comentarios">Comentários</a></li>
+      <li><a href="#categorias">Categorias</a></li>
+      <li><a href="#dashboard">Dashboard</a></li>
+      <li><a href="#processamento">Processamento (importação SIA)</a></li>
+      <li><a href="#configuracoes">Configurações</a></li>
+      <li><a href="#atalhos">Atalhos e dicas</a></li>
+      <li><a href="#faq">Perguntas frequentes</a></li>
+    </ul>
+  </nav>
+
+  <!-- ========== VISÃO GERAL ========== -->
+  <section class="ajuda-section" id="visao-geral">
+    <h2><span class="section-icon">1</span>Visão geral</h2>
+    <p class="section-sub">O que o Filadelfia faz e como os dados fluem entre as páginas.</p>
+
+    <div class="ajuda-card">
+      <h3>O que é o Filadelfia</h3>
+      <p>O Filadelfia é um sistema de gestão de fluxo de caixa projetado para trabalhar em conjunto com o ERP SIA. Ele importa os títulos a pagar e a receber, combina com lançamentos manuais e saldos bancários, e apresenta uma projeção diária consolidada.</p>
+      <p>O objetivo é ter, em uma única tela, a visão de quanto vai entrar, quanto vai sair e qual o saldo projetado de cada dia.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Como os dados chegam ao sistema</h3>
+      <ol>
+        <li><strong>Importação do SIA</strong> — na página Processamento você envia duas planilhas (contas a pagar e a receber) geradas pelo SIA. Os títulos ficam disponíveis para todos os usuários assim que são salvos.</li>
+        <li><strong>Lançamentos manuais</strong> — para despesas ou receitas que não estão no SIA (impostos, pró-labore, aportes), você cadastra manualmente em Lançamentos ou direto no Fluxo de Caixa.</li>
+        <li><strong>Saldos bancários</strong> — você registra periodicamente os saldos reais de cada conta bancária. O sistema usa esse valor como ponto de partida para projetar o saldo dos próximos dias.</li>
+      </ol>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Sincronização em tempo real</h3>
+      <p>Todos os dados ficam no Firebase. Se um colega criar um lançamento em um computador, ele aparece automaticamente na tela de todos os outros usuários logados, sem precisar recarregar a página.</p>
+      <p>O indicador verde "Sincronizado" no canto superior direito confirma que você está conectado. Se ficar amarelo ou vermelho, a conexão com o Firebase caiu.</p>
+    </div>
+  </section>
+
+  <!-- ========== PERFIS ========== -->
+  <section class="ajuda-section" id="perfis">
+    <h2><span class="section-icon">2</span>Perfis de acesso</h2>
+    <p class="section-sub">Cada usuário tem um perfil que determina o que pode fazer no sistema.</p>
+
+    <div class="ajuda-card">
+      <table class="ajuda-table">
+        <thead>
+          <tr>
+            <th>Perfil</th>
+            <th>O que pode fazer</th>
+            <th>O que NÃO pode fazer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="role-pill admin">Admin</span></td>
+            <td>Tudo: importar dados, criar/editar/excluir lançamentos, gerenciar categorias, promover outros usuários, ver auditoria, excluir comentários de outros.</td>
+            <td>Nada é bloqueado.</td>
+          </tr>
+          <tr>
+            <td><span class="role-pill editor">Editor</span></td>
+            <td>Importar dados do SIA, criar/editar/excluir os próprios lançamentos, lançar saldos, gerenciar bancos, criar categorias, comentar.</td>
+            <td>Ver configurações administrativas, promover usuários, excluir comentários dos outros, excluir saldos lançados.</td>
+          </tr>
+          <tr>
+            <td><span class="role-pill viewer">Viewer</span></td>
+            <td>Apenas visualizar todas as páginas e seus dados.</td>
+            <td>Não pode criar, editar ou excluir nada.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>O primeiro usuário que se cadastra no sistema é automaticamente promovido a Admin. Depois disso, novos usuários entram como Editor por padrão e o Admin pode mudar o perfil em Configurações.</p>
+    </div>
+  </section>
+
+  <!-- ========== FLUXO DE CAIXA ========== -->
+  <section class="ajuda-section" id="fluxo">
+    <h2><span class="section-icon">3</span>Fluxo de Caixa</h2>
+    <p class="section-sub">Página principal. Mostra a projeção diária de entradas, saídas e saldo.</p>
+
+    <div class="ajuda-card">
+      <h3>A grade de projeção</h3>
+      <p>A tabela central mostra as datas nas colunas e os fornecedores/contas nas linhas. Cada célula mostra o valor que vence naquele dia para aquele fornecedor. A última coluna soma o total do fornecedor no período.</p>
+      <p>As três linhas fixas no topo são:</p>
+      <ul>
+        <li><strong>Contas a Receber (Total)</strong> — soma de todos os títulos a receber daquele dia</li>
+        <li><strong>Contas a Pagar (Total)</strong> — soma de todos os títulos a pagar daquele dia</li>
+        <li><strong>Saldo do dia</strong> — resultado (entradas menos saídas) daquele dia</li>
+      </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Expandir e recolher</h3>
+      <p>O triângulo <code>▸</code> ao lado de uma linha indica que ela pode ser expandida. Clique na linha para abrir.</p>
+      <ul>
+        <li><strong>Contas a Pagar (Total)</strong> — ao expandir, mostra todas as categorias. Clicando em uma categoria, abre os fornecedores dentro dela.</li>
+        <li><strong>Contas a Receber (Total)</strong> — expande para mostrar os lançamentos manuais de recebimento (só aparece se houver algum).</li>
+        <li><strong>Categorias</strong> — expandem para mostrar os fornecedores que pertencem a elas.</li>
+      </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Filtro de período</h3>
+      <p>Os campos de data no topo controlam o intervalo visível. Você pode digitar datas manualmente ou usar os botões de atalho: <strong>Hoje</strong>, <strong>7 dias</strong>, <strong>30 dias</strong>, <strong>90 dias</strong>.</p>
+      <p>O botão <strong>Resetar</strong> volta ao período padrão (todos os dados disponíveis).</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Ordenação</h3>
+      <p>Clique no cabeçalho de qualquer coluna para ordenar por ela. Clique de novo para inverter a direção. A seta <code>▲</code> ou <code>▼</code> mostra a coluna ativa.</p>
+      <p>Você pode ordenar por nome do fornecedor, por valor em um dia específico, ou pelo total do período.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Ver detalhes dos títulos</h3>
+      <p>Clique em qualquer valor dentro da grade para abrir o modal de detalhes. Ele mostra cada título individual daquele fornecedor naquele dia, com documento, valor e data. Dali você pode também excluir títulos manuais.</p>
+    </div>
+
+    <div class="tip">
+      <strong>Dica:</strong> os valores em vermelho são negativos (saídas maiores que entradas naquele dia). Os valores em azul são positivos (superávit). Fins de semana aparecem com fundo cinza levemente diferente.
+    </div>
+  </section>
+
+  <!-- ========== SALDOS ========== -->
+  <section class="ajuda-section" id="saldos">
+    <h2><span class="section-icon">4</span>Saldos bancários</h2>
+    <p class="section-sub">Painel abaixo da grade. Mostra quanto você tem em cada conta agora.</p>
+
+    <div class="ajuda-card">
+      <h3>Contas cadastradas</h3>
+      <p>O sistema vem com 19 contas pré-cadastradas, separadas em dois grupos:</p>
+      <ul>
+        <li><strong>Contas livres</strong> (10): ABC, ITAU, SAFRA, BRADESCO, CAIXA, C6, BANCO DO BRASIL, SANTANDER, ASA, SOFISA</li>
+        <li><strong>Vinculadas / garantidas</strong> (9): VINCULADA DO SAFRA, VINCULADA C6, GARANTIDA CAIXA, VINCULADA SAFRA, VINCULADA BB, GARANTIDA SOFISA, VINCULADA SANTANDER, VINCULADA ASA, VINCULADA ABC</li>
+      </ul>
+      <p>O grupo "livres" são contas correntes com saldo disponível para movimentação imediata. "Vinculadas" são valores alocados como garantia, recolhimento compulsório ou outra forma de bloqueio temporário.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Lançar saldo</h3>
+      <p>Use o botão <strong>+ Lançar saldo</strong> para registrar o saldo atual de uma conta. Abrirá um modal onde você escolhe a conta e informa o valor.</p>
+      <p>Cada lançamento é imutável — quando você lança um novo saldo, o anterior permanece no histórico. Isso permite consultar evolução ao longo do tempo.</p>
+      <p>Você também pode lançar saldos clicando direto no valor <code>R$ 0,00</code> de cada conta no painel, editando inline.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Ver histórico</h3>
+      <p>O botão <strong>Ver histórico</strong> abre um modal com todos os lançamentos de saldo já feitos, agrupados por conta. Você vê quem lançou, quando e qual o valor.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>+ Nova conta</h3>
+      <p>Para cadastrar uma nova conta bancária além das 19 padrão, use o botão <strong>+ Nova conta</strong>. Informe o nome e escolha o tipo (livre ou vinculada).</p>
+    </div>
+
+    <div class="warn">
+      <strong>Atenção:</strong> saldos lançados incorretamente só podem ser excluídos por admins. Editores não podem apagar o histórico — é proposital, para preservar a auditoria.
+    </div>
+  </section>
+
+  <!-- ========== LANÇAMENTOS ========== -->
+  <section class="ajuda-section" id="lancamentos">
+    <h2><span class="section-icon">5</span>Lançamentos manuais</h2>
+    <p class="section-sub">Para registrar algo que não vem do SIA.</p>
+
+    <div class="ajuda-card">
+      <h3>Quando usar</h3>
+      <p>Use lançamentos manuais para registrar movimentações que o ERP não controla:</p>
+      <ul>
+        <li>Impostos (DAS, FGTS, INSS) que você paga fora do contas a pagar do SIA</li>
+        <li>Pró-labore, honorários, despesas pessoais dos sócios</li>
+        <li>Aportes, empréstimos, rendimentos financeiros</li>
+        <li>Recebimentos adiantados ou adiantamentos de fornecedor</li>
+        <li>Qualquer ajuste pontual no fluxo projetado</li>
+      </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Criar um lançamento</h3>
+      <p>Você pode criar lançamentos de três formas:</p>
+      <ol>
+        <li>Na página <strong>Lançamentos</strong>, pelo botão <strong>+ Novo lançamento</strong></li>
+        <li>Direto na grade do Fluxo de Caixa, clicando numa célula vazia de um fornecedor</li>
+        <li>Pelo atalho de teclado (ver seção de atalhos)</li>
+      </ol>
+      <p>Campos do formulário:</p>
+      <ul>
+        <li><strong>Tipo</strong> — a pagar ou a receber</li>
+        <li><strong>Entidade</strong> — nome do fornecedor/cliente (vira maiúsculas automaticamente)</li>
+        <li><strong>Data de vencimento</strong> — quando o lançamento afeta o caixa</li>
+        <li><strong>Valor</strong> — aceita vírgula ou ponto como decimal</li>
+        <li><strong>Documento</strong> — opcional, número de nota ou referência</li>
+        <li><strong>Nota</strong> — opcional, observação livre</li>
+      </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Lançamentos recorrentes</h3>
+      <p>Ao criar um lançamento, marque a caixa <strong>Recorrente</strong> para gerar múltiplos lançamentos em série. As opções são:</p>
+      <ul>
+        <li><strong>Semanal</strong> — cria um por semana a partir da data inicial</li>
+        <li><strong>Quinzenal</strong> — cada 14 dias</li>
+        <li><strong>Mensal</strong> — mesmo dia do mês seguinte (com ajuste inteligente para meses que não têm aquele dia, como 31 de fevereiro)</li>
+        <li><strong>Anual</strong> — mesmo dia do ano seguinte</li>
+      </ul>
+      <p>Todos os lançamentos da série ficam vinculados por um identificador comum (<code>seriesId</code>). Se você excluir um lançamento da série, os outros permanecem — só aquele é removido.</p>
+      <p>A data final da recorrência é obrigatória para evitar criar lançamentos infinitos por engano.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Página Lançamentos</h3>
+      <p>Lista todos os lançamentos manuais cadastrados, com filtros por:</p>
+      <ul>
+        <li>Tipo (pagar/receber)</li>
+        <li>Período</li>
+        <li>Texto livre (busca em entidade, documento e nota)</li>
+      </ul>
+      <p>Cada linha tem botões para editar ou excluir. Lançamentos recorrentes mostram um badge "SÉRIE" para você saber que fazem parte de um grupo.</p>
+    </div>
+  </section>
+
+  <!-- ========== COMENTÁRIOS ========== -->
+  <section class="ajuda-section" id="comentarios">
+    <h2><span class="section-icon">6</span>Comentários</h2>
+    <p class="section-sub">Anote observações sobre células específicas da grade.</p>
+
+    <div class="ajuda-card">
+      <h3>Como funciona</h3>
+      <p>Cada célula da grade (combinação de fornecedor + data) pode ter um ou mais comentários. O indicador é um pequeno ponto colorido que aparece no canto da célula quando ela tem comentário.</p>
+      <p>Para adicionar um comentário, clique na célula para abrir os detalhes e use o campo de texto na parte de baixo do modal.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Quem pode editar/excluir</h3>
+      <p>Cada usuário pode editar e excluir apenas os próprios comentários. Admins podem excluir comentários de qualquer usuário.</p>
+      <p>Quando você exclui, o comentário não é apagado definitivamente — é marcado como "deletado" e sai da visualização. Isso permite recuperar se precisar investigar.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Página Comentários</h3>
+      <p>Lista todos os comentários do sistema, ordenados por data. Ajuda a revisar o que foi dito recentemente ou encontrar uma nota antiga por busca de texto.</p>
+    </div>
+  </section>
+
+  <!-- ========== CATEGORIAS ========== -->
+  <section class="ajuda-section" id="categorias">
+    <h2><span class="section-icon">7</span>Categorias</h2>
+    <p class="section-sub">Organize fornecedores em grupos para ver totalizadores por categoria.</p>
+
+    <div class="ajuda-card">
+      <h3>Para que servem</h3>
+      <p>Categorias são usadas apenas no lado de Contas a Pagar. Permitem agrupar fornecedores por natureza (Energia, Aluguel, Impostos, Matéria-prima, etc.) e ver o total gasto em cada grupo.</p>
+      <p>Na grade do fluxo, ao expandir a linha "Contas a Pagar (Total)", você vê as categorias como sub-totalizadores. Expandindo uma categoria, você vê os fornecedores dentro dela.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Categoria nativa</h3>
+      <p>Existe uma categoria especial chamada <strong>DEMAIS FORNECEDORES</strong> que não pode ser excluída. Todos os fornecedores começam nela. Conforme você organiza, vai movendo para categorias específicas.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Criar e organizar</h3>
+      <p>Na página <strong>Categorias</strong>:</p>
+      <ol>
+        <li>Use <strong>+ Nova categoria</strong> para criar uma nova, definindo nome e cor</li>
+        <li>Selecione a categoria na lista à esquerda</li>
+        <li>Na coluna "Fornecedores disponíveis", escolha os que quer adicionar e clique em <strong>→ Adicionar</strong></li>
+        <li>Para remover um fornecedor, selecione na coluna "Atribuídos" e clique em <strong>← Remover</strong> (ele volta para DEMAIS FORNECEDORES)</li>
+      </ol>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Excluir categoria</h3>
+      <p>Ao excluir uma categoria (não-nativa), todos os fornecedores atribuídos voltam automaticamente para DEMAIS FORNECEDORES. Nenhum fornecedor é perdido.</p>
+    </div>
+  </section>
+
+  <!-- ========== DASHBOARD ========== -->
+  <section class="ajuda-section" id="dashboard">
+    <h2><span class="section-icon">8</span>Dashboard</h2>
+    <p class="section-sub">Visão agregada com indicadores e rankings.</p>
+
+    <div class="ajuda-card">
+      <h3>Indicadores principais (KPIs)</h3>
+      <ul>
+        <li><strong>Total a Receber</strong> — soma de todos os títulos a receber no período selecionado</li>
+        <li><strong>Total a Pagar</strong> — soma de todos os títulos a pagar no período</li>
+        <li><strong>Resultado projetado</strong> — diferença entre entrada e saída (positivo = superávit, negativo = déficit)</li>
+        <li><strong>Dias com déficit</strong> — quantos dias do período têm saldo negativo</li>
+      </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Presets de período</h3>
+      <p>Os botões no topo aplicam períodos pré-definidos: <strong>7 dias</strong>, <strong>30 dias</strong>, <strong>90 dias</strong>, <strong>Mês atual</strong>, <strong>Mês anterior</strong>, <strong>Todo o período</strong>.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Top Categorias, Fornecedores e Clientes</h3>
+      <p>Tabelas que mostram quem mais contribui para as contas no período:</p>
+      <ul>
+        <li><strong>Top Categorias</strong> — soma de contas a pagar por categoria, ordenado do maior para o menor</li>
+        <li><strong>Top Fornecedores</strong> — fornecedores com maiores valores a pagar</li>
+        <li><strong>Top Clientes</strong> — clientes com maiores valores a receber</li>
+      </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Distribuição por dia da semana</h3>
+      <p>Gráfico de barras que mostra em quais dias da semana concentram-se as entradas e saídas. Útil para identificar padrões (ex: todo final de mês tem pico de pagamentos).</p>
+    </div>
+  </section>
+
+  <!-- ========== PROCESSAMENTO ========== -->
+  <section class="ajuda-section" id="processamento">
+    <h2><span class="section-icon">9</span>Processamento</h2>
+    <p class="section-sub">Importação dos dados do SIA.</p>
+
+    <div class="ajuda-card">
+      <h3>O que é</h3>
+      <p>A página Processamento é onde você carrega os títulos a pagar e a receber gerados pelo SIA. O sistema lê as planilhas, identifica as colunas necessárias, valida os dados e salva no Firebase.</p>
+      <p>Toda importação substitui a anterior — você não "acumula" múltiplas importações. A ideia é que você sempre importe a versão mais recente e fresca do SIA (geralmente diária).</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Quais arquivos enviar</h3>
+      <p>O sistema precisa de dois arquivos separados:</p>
+      <ol>
+        <li><strong>Contas a Pagar</strong> — planilha .xlsx ou .xls com os títulos a pagar</li>
+        <li><strong>Contas a Receber</strong> — planilha .xlsx ou .xls com os títulos a receber</li>
+      </ol>
+      <p>Você arrasta cada arquivo para o card correspondente (ou clica no card e seleciona) e eles são pré-processados. Uma prévia aparece mostrando as primeiras linhas.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Colunas necessárias</h3>
+      <p>O sistema identifica as colunas automaticamente pelos nomes no cabeçalho da planilha. Ele aceita várias variações de nome para cada coluna.</p>
+      <p><strong>⚠️ A estrutura exata dos dois relatórios será documentada em seguida com base no que você me enviar do SIA.</strong> Por enquanto, o sistema reconhece nomes como:</p>
+      <ul>
+        <li><strong>Data de vencimento</strong> — "vencimento", "dt vencimento", "data vencimento", "vcto", "dt venc"</li>
+        <li><strong>Fornecedor (pagar)</strong> — "credor", "fornecedor", "razao social", "nome"</li>
+        <li><strong>Cliente (receber)</strong> — "cliente", "sacado", "pagador", "razao social", "nome"</li>
+        <li><strong>Valor</strong> — "valor parcela", "valor", "vlr parcela", "vlr"</li>
+        <li><strong>Documento</strong> (opcional) — "titulo/parcela", "titulo", "documento", "num titulo", "parcela"</li>
+      </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Processar</h3>
+      <p>Depois de carregar os dois arquivos, clique em <strong>Processar e salvar</strong>. O sistema:</p>
+      <ol>
+        <li>Extrai todos os títulos das duas planilhas</li>
+        <li>Valida datas e valores</li>
+        <li>Substitui os dados antigos no Firebase pelos novos</li>
+        <li>Arquiva a importação anterior (histórico das últimas 5 importações fica preservado para rollback)</li>
+        <li>Notifica todos os usuários conectados — as outras páginas atualizam sozinhas</li>
+      </ol>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Histórico de importações</h3>
+      <p>O sistema guarda as últimas 5 importações. Admins podem reverter para uma importação anterior em Configurações → Backup, caso a última importação tenha algum problema.</p>
+    </div>
+
+    <div class="warn">
+      <strong>Atenção:</strong> lançamentos manuais NÃO são afetados por reimportações. Eles vivem separadamente dos títulos importados. Só os dados do SIA são substituídos.
+    </div>
+  </section>
+
+  <!-- ========== CONFIGURAÇÕES ========== -->
+  <section class="ajuda-section" id="configuracoes">
+    <h2><span class="section-icon">10</span>Configurações</h2>
+    <p class="section-sub">Página visível apenas para administradores.</p>
+
+    <div class="ajuda-card">
+      <h3>Usuários</h3>
+      <p>Lista todos os usuários cadastrados. Admin pode:</p>
+      <ul>
+        <li>Promover editor para admin</li>
+        <li>Rebaixar admin para editor ou viewer</li>
+        <li>Ver último login de cada um</li>
+      </ul>
+      <p>O sistema sempre exige que haja pelo menos um admin ativo — não é possível remover o último.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Auditoria</h3>
+      <p>Log cronológico das últimas ações no sistema. Cada evento mostra:</p>
+      <ul>
+        <li>Quem fez a ação</li>
+        <li>Que tipo de ação (criou lançamento, excluiu fornecedor, mudou role, importou dados, etc.)</li>
+        <li>Data e hora</li>
+        <li>Detalhes adicionais (valor, nome da entidade afetada)</li>
+      </ul>
+      <p>A auditoria retém 60 dias. Eventos mais antigos são removidos automaticamente.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Backup</h3>
+      <p>Permite baixar um arquivo JSON com todos os dados (lançamentos manuais, categorias, bancos, saldos, comentários) para guardar fora do sistema.</p>
+      <p>O backup é feito manualmente, sob demanda. Não há backup automático.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Importações</h3>
+      <p>Lista as últimas importações do SIA. Admin pode reverter para uma anterior caso a mais recente tenha problemas.</p>
+    </div>
+  </section>
+
+  <!-- ========== ATALHOS ========== -->
+  <section class="ajuda-section" id="atalhos">
+    <h2><span class="section-icon">11</span>Atalhos e dicas</h2>
+    <p class="section-sub">Navegação rápida para usuários avançados.</p>
+
+    <div class="ajuda-card">
+      <h3>Atalhos de teclado</h3>
+      <table class="ajuda-table">
+        <thead>
+          <tr><th>Atalho</th><th>O que faz</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="key">Ctrl</span> + <span class="key">K</span></td><td>Abre a busca global (busca em fornecedores, clientes, lançamentos)</td></tr>
+          <tr><td><span class="key">N</span></td><td>Novo lançamento manual</td></tr>
+          <tr><td><span class="key">F</span></td><td>Vai para o fluxo de caixa</td></tr>
+          <tr><td><span class="key">D</span></td><td>Vai para o dashboard</td></tr>
+          <tr><td><span class="key">I</span></td><td>Vai para processamento (importar)</td></tr>
+          <tr><td><span class="key">?</span></td><td>Mostra a lista de atalhos</td></tr>
+          <tr><td><span class="key">Esc</span></td><td>Fecha modais e popovers</td></tr>
+          <tr><td><span class="key">Enter</span></td><td>Confirma formulários abertos</td></tr>
+        </tbody>
+      </table>
+      <p><em>Os atalhos de letras não funcionam quando você está digitando em um campo de texto.</em></p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Busca global</h3>
+      <p>A busca (Ctrl+K) procura em:</p>
+      <ul>
+        <li>Nomes de fornecedores e clientes (dos títulos importados e lançamentos manuais)</li>
+        <li>Números de documento</li>
+        <li>Texto de notas nos lançamentos</li>
+      </ul>
+      <p>Use as setas ↑ ↓ para navegar nos resultados, Enter para ir ao item selecionado.</p>
+    </div>
+  </section>
+
+  <!-- ========== FAQ ========== -->
+  <section class="ajuda-section" id="faq">
+    <h2><span class="section-icon">12</span>Perguntas frequentes</h2>
+    <p class="section-sub">Dúvidas comuns e como resolver.</p>
+
+    <div class="ajuda-card">
+      <h3>Fiz uma importação e os números estão errados. Como volto?</h3>
+      <p>Peça ao admin para ir em Configurações → Importações e escolher a versão anterior para restaurar. Isso reverte apenas os dados do SIA — lançamentos manuais ficam intactos.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Meu colega criou um lançamento, mas não aparece na minha tela.</h3>
+      <p>Normalmente aparece em segundos sem recarregar a página. Se não aparecer, verifique o indicador de sincronização (canto superior direito). Se estiver vermelho, sua conexão com o Firebase caiu — recarregue a página.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Cadastrei um saldo errado. Como corrijo?</h3>
+      <p>Você não consegue excluir saldos já lançados (proposital, para preservar histórico). Lance um novo saldo com o valor correto — ele sobrescreve o anterior nas visualizações, mas o antigo permanece no histórico.</p>
+      <p>Se realmente precisa remover o lançamento errado, peça a um admin.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Criei uma série recorrente grande por engano. Como excluir tudo?</h3>
+      <p>Na página Lançamentos, filtre pelos lançamentos da série (todos aparecem com o badge SÉRIE com o mesmo identificador). Exclua um a um, ou peça ajuda ao admin para fazer em bloco.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Por que algumas categorias não aparecem na grade?</h3>
+      <p>Só aparecem categorias que têm pelo menos um fornecedor com valor no período filtrado. Se nenhum fornecedor da categoria tem movimentação no intervalo, ela fica oculta.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Posso usar no celular?</h3>
+      <p>Sim. O sistema é responsivo e funciona em navegadores móveis (Safari iOS, Chrome Android). A grade do fluxo precisa rolar horizontalmente em telas pequenas. As demais páginas se adaptam naturalmente.</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Esqueci minha senha.</h3>
+      <p>Na tela de login, clique em "Esqueci minha senha". Você receberá um email com link para redefinir (enviado pelo Firebase Authentication).</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Como adicionar um novo usuário?</h3>
+      <p>A pessoa se cadastra sozinha na tela de login (opção "Criar conta"). Ela entra como Editor por padrão. Um admin pode alterar o perfil em Configurações depois.</p>
+    </div>
+  </section>
+</div>
+
+<button class="back-top" id="back-top" title="Voltar ao topo">↑</button>
+
+<footer class="footer">
+  DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS · v4.6
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="shared.js?v=4.6"></script>
+
+<script>
+(function() {
+  'use strict';
+  const F = window.Filadelfia;
+
+  async function init() {
+    await F.Auth.requireAuth();
+    F.UI.renderTopbar('ajuda');
+
+    // Scroll suave ao clicar nos links do sumário
+    document.querySelectorAll('.ajuda-toc a').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    // Botão voltar ao topo
+    const btnTop = document.getElementById('back-top');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 400) btnTop.classList.add('visible');
+      else btnTop.classList.remove('visible');
+    });
+    btnTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>

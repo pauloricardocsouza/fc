@@ -60,7 +60,7 @@ Na aba **Regras** do Realtime Database, cole o seguinte JSON:
       "usuarios": {
         ".read": "auth != null",
         "$uid": {
-          ".write": "auth != null && (auth.uid === $uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin' || !root.child('filadelfia/usuarios').orderByChild('role').equalTo('admin').limitToFirst(1).exists())",
+          ".write": "auth != null && (auth.uid === $uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')",
           ".validate": "newData.hasChildren(['uid', 'email', 'role']) && newData.child('role').val().matches(/^(admin|editor|viewer)$/)"
         }
       },

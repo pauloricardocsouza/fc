@@ -1,0 +1,81 @@
+{
+  "rules": {
+    "filadelfia": {
+      "usuarios": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')",
+          ".validate": "newData.hasChildren(['uid', 'email', 'role']) && newData.child('role').val().matches(/^(admin|editor|viewer)$/)"
+        }
+      },
+      "audit": {
+        ".read": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin'",
+        "$eventId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('actorUid').val() === auth.uid) || (data.exists() && !newData.exists() && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin'))",
+          ".validate": "newData.hasChildren(['action', 'actorUid', 'ts'])"
+        }
+      },
+      "comentarios": {
+        ".read": "auth != null",
+        "$cellKey": {
+          "$commentId": {
+            ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && ((data.exists() == false && newData.child('authorUid').val() === auth.uid) || (newData.exists() == false && (data.child('authorUid').val() === auth.uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')) || (data.exists() && newData.exists() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('text').val() === data.child('text').val() && newData.child('createdAt').val() === data.child('createdAt').val()))",
+            ".validate": "newData.hasChildren(['author', 'authorUid', 'text', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 1000"
+          }
+        }
+      },
+      "lancamentos": {
+        ".read": "auth != null",
+        "$lancId": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && (data.exists() == false || data.child('authorUid').val() === auth.uid || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')",
+          ".validate": "newData.hasChildren(['tipo', 'entidade', 'vencimento', 'valor', 'authorUid']) && newData.child('authorUid').val() === auth.uid && newData.child('valor').isNumber() && newData.child('valor').val() > 0 && newData.child('entidade').isString() && newData.child('entidade').val().length <= 120"
+        }
+      },
+      "deletados": {
+        ".read": "auth != null",
+        "$titleId": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
+        }
+      },
+      "categorias": {
+        ".read": "auth != null",
+        "$categoriaId": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && (data.exists() == false || data.child('nativa').val() != true || newData.child('nativa').val() === data.child('nativa').val())",
+          ".validate": "newData.hasChild('nome') && newData.child('nome').isString() && newData.child('nome').val().length >= 2 && newData.child('nome').val().length <= 60"
+        }
+      },
+      "fornecedor_categoria": {
+        ".read": "auth != null",
+        "$key": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
+        }
+      },
+      "dados_importados": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
+      },
+      "dados_importados_meta": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
+      },
+      "importacoes_historico": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'"
+      },
+      "bancos": {
+        ".read": "auth != null",
+        "$bankId": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer'",
+          ".validate": "newData.hasChildren(['nome', 'tipo']) && newData.child('nome').isString() && newData.child('tipo').val().matches(/^(livre|vinculada)$/)"
+        }
+      },
+      "saldos_historico": {
+        ".read": "auth != null",
+        "$eventId": {
+          ".write": "auth != null && root.child('filadelfia/usuarios').child(auth.uid).child('role').val() !== 'viewer' && (!data.exists() || root.child('filadelfia/usuarios').child(auth.uid).child('role').val() === 'admin')",
+          ".validate": "newData.hasChildren(['bankId', 'valor', 'authorUid']) && newData.child('valor').isNumber() && newData.child('authorUid').val() === auth.uid"
+        }
+      }
+    }
+  }
+}
