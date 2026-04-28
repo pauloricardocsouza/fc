@@ -642,7 +642,7 @@
       if (!entry || !entry.bankId || !entry.ts) return;
       const d = new Date(entry.ts);
       if (isNaN(d)) return;
-      const k = F.Dates.formatDateKey(d);
+      const k = F.Dates.dateKey(d);
       let mb = porBanco.get(entry.bankId);
       if (!mb) { mb = new Map(); porBanco.set(entry.bankId, mb); }
       const prev = mb.get(k);
