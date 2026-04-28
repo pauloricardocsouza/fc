@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=4.8">
+<link rel="stylesheet" href="shared.css?v=4.9">
 
 <style>
   .ajuda-wrap {
@@ -343,7 +343,7 @@
           </tr>
         </tbody>
       </table>
-      <p>O primeiro usuário que se cadastra no sistema é automaticamente promovido a Admin. Depois disso, novos usuários entram como Editor por padrão e o Admin pode mudar o perfil em Configurações.</p>
+      <p>O primeiro usuário a fazer login no sistema é automaticamente promovido a Admin. Os usuários precisam ser criados pelo administrador no Firebase Authentication. Após criados, eles fazem login pela primeira vez e entram como Editor por padrão (exceto o primeiro, que vira Admin).</p>
     </div>
   </section>
 
@@ -761,7 +761,14 @@
 
     <div class="ajuda-card">
       <h3>Como adicionar um novo usuário?</h3>
-      <p>A pessoa se cadastra sozinha na tela de login (opção "Criar conta"). Ela entra como Editor por padrão. Um admin pode alterar o perfil em Configurações depois.</p>
+      <p>O administrador precisa criar o usuário no Firebase Console:</p>
+      <ol>
+        <li>Acesse <code>console.firebase.google.com</code> → projeto <strong>filadelfia-d0046</strong></li>
+        <li>Menu lateral → <strong>Authentication</strong> → aba <strong>Users</strong></li>
+        <li>Clique em <strong>Add user</strong>, informe email e uma senha temporária</li>
+        <li>Avise o usuário do email + senha. Ele faz login e, se quiser, usa "Esqueci minha senha" para redefinir</li>
+        <li>Após o primeiro login, ele aparece em <strong>Configurações → Usuários</strong> com perfil Editor (você pode mudar para Admin se necessário)</li>
+      </ol>
     </div>
   </section>
 </div>
@@ -769,13 +776,13 @@
 <button class="back-top" id="back-top" title="Voltar ao topo">↑</button>
 
 <footer class="footer">
-  DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS · v4.8
+  DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS · v4.9
 </footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-<script src="shared.js?v=4.8"></script>
+<script src="shared.js?v=4.9"></script>
 
 <script>
 (function() {

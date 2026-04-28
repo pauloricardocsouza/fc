@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=4.8">
+<link rel="stylesheet" href="shared.css?v=4.9">
 <style>
   body {
     min-height: 100vh;
@@ -167,6 +167,31 @@
     color: var(--text-muted);
     margin-top: 16px;
   }
+  .forgot-row {
+    text-align: center;
+    margin-top: 12px;
+  }
+  .forgot-row a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 13px;
+    transition: opacity 0.15s;
+  }
+  .forgot-row a:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+  .success-message {
+    background: #d1fae5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .success-message.show { display: block; }
 
   @media (max-width: 480px) {
     .login-card { padding: 28px 22px; }
@@ -199,6 +224,7 @@
     </div>
 
     <div class="error-message" id="error-msg"></div>
+    <div class="success-message" id="success-msg"></div>
 
     <form id="login-form" novalidate>
       <div class="form-group">
@@ -233,8 +259,12 @@
         </svg>
       </button>
 
+      <div class="forgot-row">
+        <a href="#" id="forgot-link">Esqueci minha senha</a>
+      </div>
+
       <div class="help-text">
-        Precisa de acesso? Contate o administrador do sistema.
+        Não tem conta? Contate o administrador do sistema.
       </div>
     </form>
 
@@ -248,7 +278,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-<script src="shared.js?v=4.8"></script>
+<script src="shared.js?v=4.9"></script>
 
 <script>
 (function() {
@@ -324,10 +354,21 @@
     }
   }
 
+  function showSuccess(msg) {
+    const el = document.getElementById('success-msg');
+    el.textContent = msg;
+    el.classList.add('show');
+    hideError();
+  }
+  function hideSuccess() {
+    document.getElementById('success-msg').classList.remove('show');
+  }
+
   // Login submit
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
+    hideSuccess();
 
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -349,7 +390,54 @@
       location.href = returnTo;
     } catch (err) {
       setLoading(false);
-      showError(err.message);
+      // Traduzir erros comuns do Firebase Auth
+      const msg = String(err.message || err);
+      if (msg.includes('user-not-found') || msg.includes('USER_NOT_FOUND')) {
+        showError('Email não cadastrado. Verifique ou contate o administrador.');
+      } else if (msg.includes('wrong-password') || msg.includes('WRONG_PASSWORD') || msg.includes('invalid-credential') || msg.includes('INVALID_LOGIN_CREDENTIALS')) {
+        showError('Email ou senha incorretos. Use "Esqueci minha senha" se necessário.');
+      } else if (msg.includes('too-many-requests') || msg.includes('TOO_MANY_ATTEMPTS')) {
+        showError('Muitas tentativas. Tente novamente em alguns minutos.');
+      } else if (msg.includes('network')) {
+        showError('Sem conexão. Verifique sua internet.');
+      } else {
+        showError(msg);
+      }
+    }
+  });
+
+  // Esqueci minha senha
+  document.getElementById('forgot-link').addEventListener('click', async (e) => {
+    e.preventDefault();
+    hideError();
+    hideSuccess();
+
+    const email = document.getElementById('email').value.trim();
+    if (!email) {
+      showError('Digite seu email no campo acima e clique novamente em "Esqueci minha senha".');
+      document.getElementById('email').focus();
+      return;
+    }
+
+    if (!F.IS_FIREBASE_CONFIGURED) {
+      showError('Firebase não configurado.');
+      return;
+    }
+
+    if (!confirm(`Enviar email de redefinição de senha para ${email}?`)) return;
+
+    try {
+      await F.state.fbAuth.sendPasswordResetEmail(email);
+      showSuccess(`Email enviado para ${email}. Verifique sua caixa de entrada (e o spam).`);
+    } catch (err) {
+      const msg = String(err.message || err);
+      if (msg.includes('user-not-found') || msg.includes('USER_NOT_FOUND')) {
+        showError('Email não cadastrado no sistema.');
+      } else if (msg.includes('invalid-email')) {
+        showError('Email inválido. Verifique se digitou corretamente.');
+      } else {
+        showError('Erro ao enviar email: ' + msg);
+      }
     }
   });
 })();
