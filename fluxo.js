@@ -675,6 +675,26 @@
     // Avança através das filteredDates aplicando entries até cada dia
     let ptr = 0;
     let fimDoDiaAnterior = null; // null antes da primeira data com lançamento
+
+    // Se houver lançamentos ANTES do primeiro dia de filteredDates, aplica-os primeiro
+    // e usa a soma como saldo de abertura. Isso permite que o saldo transporte para
+    // dentro do período mesmo quando o lançamento foi feito em data anterior à importação.
+    const primeiroDiaFiltrado = filteredDates[0];
+    if (primeiroDiaFiltrado && allBankEntries.length) {
+      while (ptr < allBankEntries.length && allBankEntries[ptr].dataKey < primeiroDiaFiltrado) {
+        const e = allBankEntries[ptr];
+        saldosLive.set(e.bankId, e.valor);
+        ptr++;
+      }
+      // Se houve lançamento ANTES do primeiro dia, fimDoDiaAnterior representa o saldo
+      // de abertura do período (sem aplicar net de dias anteriores que não conhecemos)
+      if (saldosLive.size > 0) {
+        let soma = 0;
+        saldosLive.forEach(v => { soma += v; });
+        fimDoDiaAnterior = soma;
+      }
+    }
+
     const cells = [];
 
     filteredDates.forEach((k, i) => {
@@ -689,19 +709,18 @@
       const teveLancamentoHoje = allBankEntries.some(e => e.dataKey === k);
 
       // Saldo transportado para o início do dia
-      // Antes do primeiro dia com lançamento → null
+      // - Antes do primeiro dia com lançamento (e sem lançamentos anteriores ao período) → null
+      // - Se já houve qualquer lançamento (até mesmo antes do filteredDates) → tem saldo válido
       let transportado = null;
-      if (primeiraData && k >= primeiraData) {
-        if (teveLancamentoHoje) {
-          // No dia do lançamento, o "início" é a soma dos saldos vivos APÓS aplicar os
-          // lançamentos do dia (porque o lançamento substitui o anterior).
-          let soma = 0;
-          saldosLive.forEach(v => { soma += v; });
-          transportado = soma;
-        } else {
-          // Sem lançamento → carrega o fim do dia anterior
-          transportado = fimDoDiaAnterior != null ? fimDoDiaAnterior : null;
-        }
+      if (teveLancamentoHoje) {
+        // No dia do lançamento, o "início" é a soma dos saldos vivos APÓS aplicar os
+        // lançamentos do dia (porque o lançamento substitui o anterior).
+        let soma = 0;
+        saldosLive.forEach(v => { soma += v; });
+        transportado = soma;
+      } else if (fimDoDiaAnterior != null) {
+        // Sem lançamento hoje → carrega o fim do dia anterior
+        transportado = fimDoDiaAnterior;
       }
 
       const net = totalsByDate[k]?.net || 0;
