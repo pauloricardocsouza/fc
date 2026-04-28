@@ -2257,6 +2257,34 @@
       if (e.key === 'Enter') { e.preventDefault(); salvarLancarSaldo(); }
     });
 
+    // Exportar (dropdown)
+    const btnExport = document.getElementById('btn-saldos-export');
+    const menuExport = document.getElementById('saldos-export-menu');
+    if (btnExport && menuExport) {
+      btnExport.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = menuExport.classList.toggle('open');
+        btnExport.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+      // Fecha ao clicar fora
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.saldos-export-wrap')) {
+          menuExport.classList.remove('open');
+          btnExport.setAttribute('aria-expanded', 'false');
+        }
+      });
+      // Itens do menu
+      menuExport.querySelectorAll('.saldos-export-item').forEach(item => {
+        item.addEventListener('click', () => {
+          menuExport.classList.remove('open');
+          btnExport.setAttribute('aria-expanded', 'false');
+          const formato = item.dataset.export;
+          if (formato === 'pdf') exportarSaldosPDF();
+          else if (formato === 'png') exportarSaldosPNG();
+        });
+      });
+    }
+
     // Fechar modais
     document.querySelectorAll('[data-close="saldos-historico"]').forEach(el => {
       el.addEventListener('click', closeSaldosHistorico);
@@ -2288,6 +2316,133 @@
       if (novoOpen) closeNovoBanco();
       if (lancOpen) closeLancarSaldo();
     });
+  }
+
+  /* ========== Exportação dos Saldos Bancários ========== */
+
+  // Helper: prepara o card de saldos para exportação (esconde botões, mostra timestamp)
+  function _prepareSaldosForExport() {
+    const card = document.querySelector('.saldos-card');
+    const ts = document.getElementById('saldos-export-timestamp');
+    if (!card || !ts) return null;
+
+    // Formata data/hora atual no horário de Brasília (UTC-3)
+    const agora = new Date();
+    const fmt = new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    });
+    const partes = fmt.formatToParts(agora);
+    const dia = partes.find(p => p.type === 'day').value;
+    const mes = partes.find(p => p.type === 'month').value;
+    const ano = partes.find(p => p.type === 'year').value;
+    const hora = partes.find(p => p.type === 'hour').value;
+    const min = partes.find(p => p.type === 'minute').value;
+    const tsTexto = `Exportado em ${dia}/${mes}/${ano} às ${hora}:${min}`;
+
+    ts.textContent = tsTexto;
+    ts.classList.add('show');
+    card.classList.add('exporting');
+
+    return { card, ts, tsTexto, agora };
+  }
+
+  function _restoreSaldosAfterExport(state) {
+    if (!state) return;
+    state.card.classList.remove('exporting');
+    state.ts.classList.remove('show');
+    state.ts.textContent = '';
+  }
+
+  // Filename helper: "saldos-bancarios-AAAA-MM-DD-HHMM"
+  function _saldosFilename(agora, ext) {
+    const fmt = new Intl.DateTimeFormat('sv-SE', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    });
+    const stamp = fmt.format(agora).replace(/[\s:]/g, '-');
+    return `saldos-bancarios-${stamp}.${ext}`;
+  }
+
+  async function exportarSaldosPNG() {
+    const state = _prepareSaldosForExport();
+    if (!state) return;
+    try {
+      F.UI.showLoading('Gerando imagem…');
+      // pequeno delay para CSS aplicar
+      await new Promise(r => setTimeout(r, 50));
+      const canvas = await html2canvas(state.card, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = _saldosFilename(state.agora, 'png');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      F.UI.showToast('Imagem exportada com sucesso', 'success');
+    } catch (err) {
+      console.error(err);
+      F.UI.showToast('Erro ao gerar imagem: ' + err.message, 'error');
+    } finally {
+      F.UI.hideLoading();
+      _restoreSaldosAfterExport(state);
+    }
+  }
+
+  async function exportarSaldosPDF() {
+    const state = _prepareSaldosForExport();
+    if (!state) return;
+    try {
+      F.UI.showLoading('Gerando PDF…');
+      await new Promise(r => setTimeout(r, 50));
+      const canvas = await html2canvas(state.card, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const imgData = canvas.toDataURL('image/png');
+
+      const { jsPDF } = window.jspdf;
+      // Decidir orientação: se largura > altura, usa landscape
+      const isLandscape = canvas.width > canvas.height;
+      const pdf = new jsPDF({
+        orientation: isLandscape ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 8;
+      const maxW = pageWidth - margin * 2;
+      const maxH = pageHeight - margin * 2;
+      // Calcular escala mantendo proporção
+      const ratio = canvas.width / canvas.height;
+      let imgW = maxW;
+      let imgH = maxW / ratio;
+      if (imgH > maxH) {
+        imgH = maxH;
+        imgW = maxH * ratio;
+      }
+      const offsetX = (pageWidth - imgW) / 2;
+      const offsetY = (pageHeight - imgH) / 2;
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, imgW, imgH);
+      pdf.save(_saldosFilename(state.agora, 'pdf'));
+      F.UI.showToast('PDF exportado com sucesso', 'success');
+    } catch (err) {
+      console.error(err);
+      F.UI.showToast('Erro ao gerar PDF: ' + err.message, 'error');
+    } finally {
+      F.UI.hideLoading();
+      _restoreSaldosAfterExport(state);
+    }
   }
 
   // Chama setup dos handlers quando DOM estiver pronto (complementar ao init principal)

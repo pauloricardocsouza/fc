@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=4.9">
+<link rel="stylesheet" href="shared.css?v=5.1">
 <style>
   .info-box {
     margin: 20px 28px 0;
@@ -345,7 +345,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
-<script src="shared.js?v=4.9"></script>
+<script src="shared.js?v=5.1"></script>
 
 <script>
 (function() {
@@ -405,7 +405,9 @@
           const data = new Uint8Array(e.target.result);
           const wb = XLSX.read(data, { type: 'array', cellDates: true });
           const sheet = wb.Sheets[wb.SheetNames[0]];
-          const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
+          // raw:true preserva tipos originais (Date para datas formatadas, number para serial Excel)
+          // raw:false convertia tudo para string formatada, perdendo dados quando célula não tem formato de data
+          const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true });
 
           const headerIdx = detectHeaderRow(aoa);
           if (headerIdx < 0) {

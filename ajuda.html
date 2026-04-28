@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=4.9">
+<link rel="stylesheet" href="shared.css?v=5.1">
 
 <style>
   .ajuda-wrap {
@@ -607,16 +607,32 @@
     </div>
 
     <div class="ajuda-card">
-      <h3>Colunas necessárias</h3>
-      <p>O sistema identifica as colunas automaticamente pelos nomes no cabeçalho da planilha. Ele aceita várias variações de nome para cada coluna.</p>
-      <p><strong>⚠️ A estrutura exata dos dois relatórios será documentada em seguida com base no que você me enviar do SIA.</strong> Por enquanto, o sistema reconhece nomes como:</p>
+      <h3>Como exportar do SIA</h3>
+      <p>Os dois relatórios saem do menu <strong>Financeiro</strong> do SIA, no formato <strong>Consulta Analítica por Título</strong>:</p>
+      <ol>
+        <li><strong>Contas a Pagar</strong>: SIA → Financeiro → Contas a Pagar → Consulta Analítica por Título → Exportar para Excel (gera arquivo <code>.xls</code>)</li>
+        <li><strong>Contas a Receber</strong>: SIA → Financeiro → Contas a Receber → Consulta Analítica por Título → Exportar para Excel (gera arquivo <code>.xls</code>)</li>
+      </ol>
+      <p>Antes de exportar, aplique os filtros:</p>
       <ul>
-        <li><strong>Data de vencimento</strong> — "vencimento", "dt vencimento", "data vencimento", "vcto", "dt venc"</li>
-        <li><strong>Fornecedor (pagar)</strong> — "credor", "fornecedor", "razao social", "nome"</li>
-        <li><strong>Cliente (receber)</strong> — "cliente", "sacado", "pagador", "razao social", "nome"</li>
-        <li><strong>Valor</strong> — "valor parcela", "valor", "vlr parcela", "vlr"</li>
-        <li><strong>Documento</strong> (opcional) — "titulo/parcela", "titulo", "documento", "num titulo", "parcela"</li>
+        <li><strong>Vencimento</strong>: defina o período que quer projetar (geralmente 30 a 90 dias à frente)</li>
+        <li><strong>Situação</strong> (apenas no Contas a Receber): "A Receber" para excluir títulos já recebidos</li>
       </ul>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Estrutura dos arquivos</h3>
+      <p>Os dois relatórios têm estrutura similar — as primeiras 5 linhas são o cabeçalho institucional (nome da empresa, título, data/hora da geração, filtros aplicados). A linha 6 é o cabeçalho de colunas e a partir da linha 7 vêm os dados.</p>
+      <p><strong>Contas a Pagar (14 colunas):</strong></p>
+      <p>Emp. · Vencimento · Emissão · <strong>Credor</strong> · Título/Parcela · (em branco) · Atraso · <strong>Valor Parcela</strong> · Saldo a Pagar · Saldo Acumulado · Agente de Cobrança · Cheque Nº · C.C./Banco · Histórico</p>
+      <p><strong>Contas a Receber (14 colunas):</strong></p>
+      <p>Emp. · Vencimento · Emissão · <strong>Cliente</strong> · Título/Parcela · Atraso · <strong>Valor Parcela</strong> · Saldo Receber · Descontos · Saldo Líquido · Saldo Acumulado · Cheque Nº · C.C./Banco · Histórico</p>
+      <p>O sistema identifica as colunas automaticamente pelos nomes — não importa a posição exata, desde que o cabeçalho contenha "Vencimento", "Credor"/"Cliente", "Valor Parcela" e "Título/Parcela".</p>
+    </div>
+
+    <div class="ajuda-card">
+      <h3>Observação sobre o formato</h3>
+      <p>O SIA exporta arquivos com extensão <code>.xls</code>, mas o conteúdo é na verdade XLSX moderno. Isso é normal — o sistema FC Filadelfia detecta automaticamente e processa corretamente.</p>
     </div>
 
     <div class="ajuda-card">
@@ -776,13 +792,13 @@
 <button class="back-top" id="back-top" title="Voltar ao topo">↑</button>
 
 <footer class="footer">
-  DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS · v4.9
+  DESENVOLVIDO POR R2 SOLUÇÕES EMPRESARIAIS · v5.1
 </footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-<script src="shared.js?v=4.9"></script>
+<script src="shared.js?v=5.1"></script>
 
 <script>
 (function() {
