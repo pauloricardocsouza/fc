@@ -902,7 +902,7 @@
 
     parts.push('</tbody>');
 
-    // Rodapé — Saldo do dia + Saldo total bancário + Saldo do dia considerando bancos
+    // Rodapé — Saldo do dia + Saldo do dia considerando bancos
     parts.push('<tfoot>');
 
     // Linha 1: Saldo do dia (receber - pagar)
@@ -916,21 +916,9 @@
     });
     parts.push(`<td class="${saldoTotal >= 0 ? 'positive-bal' : 'negative-bal'}" style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtMoneyShort(saldoTotal)}</td></tr>`);
 
-    // Linha 2: Saldo total bancário (saldo lançado, aparece SÓ nos dias de lançamento)
+    // Linha 2: Saldo do dia considerando bancos (transportado + net do dia)
+    // Cada célula tem o valor + uma sub-legenda "Saldo lançado" ou "Saldo transportado"
     const bankCells = computeBankSaldoCells(filteredDates, totalsByDate, saldosHistorico);
-    parts.push('<tr class="saldo-banco"><td class="first">Saldo total bancário</td>');
-    filteredDates.forEach((k, i) => {
-      const c = bankCells[i];
-      if (c.lancado != null) {
-        const cls = c.lancado >= 0 ? 'positive-bal' : 'negative-bal';
-        parts.push(`<td class="${cls} bank-launched" title="Saldo lançado em ${F.escapeHTML(F.Fmt.fmtFullDate(F.Dates.parseDateKey(k)))}">${F.Fmt.fmtMoneyShort(c.lancado)}</td>`);
-      } else {
-        parts.push(`<td class="bank-empty">—</td>`);
-      }
-    });
-    parts.push(`<td style="border-left:1.5px solid var(--border-strong);" class="bank-empty">—</td></tr>`);
-
-    // Linha 3: Saldo do dia considerando bancos (transportado + net do dia)
     parts.push('<tr class="saldo-final"><td class="first">Saldo do dia considerando bancos</td>');
     let lastFinalShown = null;
     filteredDates.forEach((k, i) => {
@@ -939,17 +927,20 @@
         parts.push(`<td class="bank-empty">—</td>`);
       } else {
         const cls = c.fimDoDia >= 0 ? 'positive-bal' : 'negative-bal';
-        const tooltip = c.lancado != null
+        const lancou = c.lancado != null;
+        const legenda = lancou ? 'Saldo lançado' : 'Saldo transportado';
+        const legendaClass = lancou ? 'sf-legend launched' : 'sf-legend transported';
+        const tooltip = lancou
           ? `Saldo recém lançado neste dia, com movimentações aplicadas`
           : `Saldo bancário transportado do dia anterior`;
-        parts.push(`<td class="${cls}" title="${F.escapeHTML(tooltip)}">${F.Fmt.fmtMoneyShort(c.fimDoDia)}</td>`);
+        parts.push(`<td class="${cls}" title="${F.escapeHTML(tooltip)}"><div class="sf-value">${F.Fmt.fmtMoneyShort(c.fimDoDia)}</div><div class="${legendaClass}">${legenda}</div></td>`);
         lastFinalShown = c.fimDoDia;
       }
     });
     // Coluna Total: usa o último valor de fim de dia (o saldo final do período)
     if (lastFinalShown != null) {
       const cls = lastFinalShown >= 0 ? 'positive-bal' : 'negative-bal';
-      parts.push(`<td class="${cls}" style="border-left:1.5px solid var(--border-strong);" title="Saldo no fim do per\u00edodo">${F.Fmt.fmtMoneyShort(lastFinalShown)}</td>`);
+      parts.push(`<td class="${cls}" style="border-left:1.5px solid var(--border-strong);" title="Saldo no fim do per\u00edodo"><div class="sf-value">${F.Fmt.fmtMoneyShort(lastFinalShown)}</div><div class="sf-legend">Fim do per\u00edodo</div></td>`);
     } else {
       parts.push(`<td class="bank-empty" style="border-left:1.5px solid var(--border-strong);">—</td>`);
     }
@@ -1758,10 +1749,7 @@
 
     lines.push(['Saldo do dia', ...ex.saldoCells.map(moneyCsv), moneyCsv(ex.sT)].map(csvCell).join(';'));
 
-    // Linha "Saldo total bancário" — só os dias com lançamento, resto vazio
-    lines.push(['Saldo total bancário', ...ex.bankCells.map(c => c.lancado != null ? moneyCsv(c.lancado) : ''), ''].map(csvCell).join(';'));
-
-    // Linha "Saldo do dia considerando bancos"
+    // Linha "Saldo do dia considerando bancos" — com legenda em linha separada (lançado/transportado)
     let lastFinal = null;
     const finalCells = ex.bankCells.map(c => {
       if (c.fimDoDia == null) return '';
@@ -1769,6 +1757,13 @@
       return moneyCsv(c.fimDoDia);
     });
     lines.push(['Saldo do dia considerando bancos', ...finalCells, lastFinal != null ? moneyCsv(lastFinal) : ''].map(csvCell).join(';'));
+
+    // Linha auxiliar com a indicação Lançado/Transportado para cada dia
+    const tipoCells = ex.bankCells.map(c => {
+      if (c.fimDoDia == null) return '';
+      return c.lancado != null ? 'Saldo lançado' : 'Saldo transportado';
+    });
+    lines.push(['', ...tipoCells, ''].map(csvCell).join(';'));
 
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     downloadBlob(blob, getExportFilename('csv', level));
@@ -1805,10 +1800,6 @@
 
         aoa.push(['Saldo do dia', ...ex.saldoCells, ex.sT]);
 
-        // Linha "Saldo total bancário"
-        const bankLancRow = ex.bankCells.map(c => c.lancado != null ? c.lancado : null);
-        aoa.push(['Saldo total bancário', ...bankLancRow, null]);
-
         // Linha "Saldo do dia considerando bancos"
         let lastFinalXlsx = null;
         const finalRow = ex.bankCells.map(c => {
@@ -1817,6 +1808,13 @@
           return c.fimDoDia;
         });
         aoa.push(['Saldo do dia considerando bancos', ...finalRow, lastFinalXlsx]);
+
+        // Linha de tipo (lançado/transportado) sob a linha anterior
+        const tipoRow = ex.bankCells.map(c => {
+          if (c.fimDoDia == null) return null;
+          return c.lancado != null ? 'Saldo lançado' : 'Saldo transportado';
+        });
+        aoa.push(['', ...tipoRow, '']);
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         const range = XLSX.utils.decode_range(ws['!ref']);
@@ -2063,22 +2061,7 @@
           { content: fmtMoneyForPdf(sTChunk), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: sTChunk >= 0 ? [28, 167, 236] : [255, 121, 113] } },
         ]);
 
-        // Linha "Saldo total bancário" — fundo intermediário, valores apenas onde houve lançamento
-        const bankBgPdf = [31, 39, 51];
-        const bankFgPdf = [203, 213, 225];
         const bankFgEmptyPdf = [100, 116, 139];
-        body.push([
-          { content: 'Saldo total bancário', styles: { fontStyle: 'bold', fillColor: bankBgPdf, textColor: [226, 232, 240] } },
-          ...chunkIndices.map(i => {
-            const c = ex.bankCells[i];
-            if (c.lancado != null) {
-              const cellBg = [42, 58, 79]; // destaque para dia com lançamento
-              return { content: fmtMoneyForPdf(c.lancado), styles: { fontStyle: 'bold', fillColor: cellBg, textColor: c.lancado >= 0 ? [28, 167, 236] : [255, 121, 113] } };
-            }
-            return { content: '–', styles: { fontStyle: 'normal', fillColor: bankBgPdf, textColor: bankFgEmptyPdf } };
-          }),
-          { content: '–', styles: { fillColor: bankBgPdf, textColor: bankFgEmptyPdf } },
-        ]);
 
         // Linha "Saldo do dia considerando bancos" — destaque preto com cor por sinal
         // Total da coluna mostra o último fimDoDia visto (saldo no fim do período no chunk)
@@ -2097,6 +2080,25 @@
           lastFinalChunk != null
             ? { content: fmtMoneyForPdf(lastFinalChunk), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: lastFinalChunk >= 0 ? [28, 167, 236] : [255, 121, 113] } }
             : { content: '–', styles: { fillColor: [10, 14, 22], textColor: bankFgEmptyPdf } },
+        ]);
+
+        // Linha auxiliar com legenda Lançado/Transportado (fonte pequena, fundo discreto)
+        const legendBg = [31, 39, 51];
+        const legendCells = chunkIndices.map(i => {
+          const c = ex.bankCells[i];
+          if (c.fimDoDia == null) {
+            return { content: '', styles: { fillColor: legendBg } };
+          }
+          const txt = c.lancado != null ? 'Saldo lançado' : 'Saldo transportado';
+          const color = c.lancado != null ? [28, 167, 236] : [156, 163, 175];
+          return { content: txt, styles: { fontStyle: 'normal', fontSize: 5.5, fillColor: legendBg, textColor: color, halign: 'right' } };
+        });
+        body.push([
+          { content: '', styles: { fillColor: legendBg } },
+          ...legendCells,
+          lastFinalChunk != null
+            ? { content: 'Fim do período', styles: { fontStyle: 'normal', fontSize: 5.5, fillColor: legendBg, textColor: [156, 163, 175], halign: 'right' } }
+            : { content: '', styles: { fillColor: legendBg } },
         ]);
 
         if (chunkIdx > 0) doc.addPage();

@@ -464,46 +464,49 @@ table.grid tfoot tr.saldo td.first {
 table.grid tfoot tr.saldo td.positive-bal { color: var(--accent); }
 table.grid tfoot tr.saldo td.negative-bal { color: #ff7971; }
 
-/* Linha "Saldo total bancário" — fundo intermediário, destaque para dias com lançamento */
-table.grid tfoot tr.saldo-banco td {
-  background: #1f2733;
-  color: #cbd5e1;
-  font-size: 12px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  border-top: 1px solid #2d3a4a;
-}
-table.grid tfoot tr.saldo-banco td.first {
-  background: #1f2733;
-  color: #e2e8f0;
-  font-family: 'Archivo', sans-serif;
-  font-weight: 700;
-}
-table.grid tfoot tr.saldo-banco td.positive-bal { color: var(--accent); }
-table.grid tfoot tr.saldo-banco td.negative-bal { color: #ff7971; }
-table.grid tfoot tr.saldo-banco td.bank-empty { color: #64748b; font-weight: 500; }
-table.grid tfoot tr.saldo-banco td.bank-launched {
-  background: #2a3a4f;
-  position: relative;
-  box-shadow: inset 0 0 0 1px rgba(28, 167, 236, 0.4);
-}
-
-/* Linha "Saldo do dia considerando bancos" — destaque máximo */
+/* Linha "Saldo do dia considerando bancos" — destaque máximo, com legenda interna */
 table.grid tfoot tr.saldo-final td {
   background: var(--brand-black);
   color: #fff;
   font-size: 13px;
   font-weight: 800;
-  border-top: 1px solid #2d3a4a;
+  border-top: 2px solid var(--accent);
+  vertical-align: top;
+  padding: 8px 10px;
 }
 table.grid tfoot tr.saldo-final td.first {
   background: var(--brand-black);
   color: #fff;
   font-size: 12.5px;
+  vertical-align: middle;
 }
 table.grid tfoot tr.saldo-final td.positive-bal { color: var(--accent); }
 table.grid tfoot tr.saldo-final td.negative-bal { color: #ff7971; }
-table.grid tfoot tr.saldo-final td.bank-empty { color: #64748b; font-weight: 500; }
+table.grid tfoot tr.saldo-final td.bank-empty { color: #64748b; font-weight: 500; vertical-align: middle; }
+
+/* Conteúdo da célula: valor em cima + legenda em baixo */
+table.grid tfoot tr.saldo-final td .sf-value {
+  font-size: 13px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.2;
+}
+table.grid tfoot tr.saldo-final td .sf-legend {
+  font-size: 9px;
+  font-weight: 500;
+  font-family: 'Archivo', sans-serif;
+  line-height: 1.2;
+  margin-top: 2px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+table.grid tfoot tr.saldo-final td .sf-legend.launched {
+  color: var(--accent);
+}
+table.grid tfoot tr.saldo-final td .sf-legend.transported {
+  color: #94a3b8;
+}
 table.grid tfoot tr.acumulado td {
   background: var(--surface-2);
   color: var(--text-dim);
