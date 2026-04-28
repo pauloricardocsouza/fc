@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=5.6">
-<link rel="stylesheet" href="fluxo.css?v=5.6">
+<link rel="stylesheet" href="shared.css?v=6.1">
+<link rel="stylesheet" href="fluxo.css?v=6.1">
 <style>
   /* Meta-info chips (data/hora da importação + período) */
   .meta-info {
@@ -137,7 +137,7 @@
     <div class="grid-card" id="grid-card">
       <div class="grid-head">
         <div>
-          <h3>Grade de fluxo por fornecedor e dia</h3>
+          <h3>Fluxo de caixa <span id="grid-export-timestamp" class="grid-export-timestamp"></span></h3>
           <div class="sub" id="grid-sub">—</div>
         </div>
         <div class="legend">
@@ -535,7 +535,7 @@
             <div class="export-option-desc">.pdf paginado em paisagem, pronto para imprimir ou compartilhar.</div>
           </div>
         </button>
-        <button type="button" class="export-option" data-format="png">
+        <button type="button" class="export-option" data-format="png" data-not-for="fornecedores">
           <div class="export-option-icon" style="color: #7c3aed;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           </div>
@@ -580,8 +580,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <!-- Módulos do sistema -->
-<script src="shared.js?v=5.6"></script>
-<script src="fluxo.js?v=5.6"></script>
+<script src="shared.js?v=6.1"></script>
+<script src="fluxo.js?v=6.1"></script>
 
 </body>
 </html>

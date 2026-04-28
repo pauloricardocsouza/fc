@@ -106,6 +106,8 @@
     unsubscribes.push(F.DB.subscribeSaldosHistorico(data => {
       saldosHistorico = data || {};
       renderSaldosPanel();
+      // Atualiza também o fluxo (linhas "Saldo total bancário" e "Saldo do dia considerando bancos")
+      if (processed) render();
     }));
     // Cria bancos padrão se for a primeira vez (só roda se for editor+)
     F.DB.ensureDefaultBanks().catch(err => console.warn('Bancos padrão:', err));
@@ -626,6 +628,98 @@
     return sorted;
   }
 
+  // Calcula a coluna de saldo bancário transportado para cada dia em filteredDates
+  // Retorna um array de objetos { lancado, transportado, fimDoDia, valido } onde:
+  //   - lancado: valor lançado naquele dia (null se não houve lançamento)
+  //   - transportado: saldo no INÍCIO do dia (do dia anterior)
+  //   - fimDoDia: saldo no FIM do dia (transportado + net) — null antes do primeiro lançamento
+  //   - valido: true se já passou pela primeira data com lançamento
+  function computeBankSaldoCells(filteredDates, totalsByDate, saldosHistorico) {
+    // Agrupa lançamentos por bankId, mantendo o último (por ts) por dataKey
+    // Para cada banco, queremos o histórico ordenado de [{dataKey, valor, ts}]
+    const porBanco = new Map(); // bankId -> Map<dataKey, {valor, ts}>
+    Object.values(saldosHistorico || {}).forEach(entry => {
+      if (!entry || !entry.bankId || !entry.ts) return;
+      const d = new Date(entry.ts);
+      if (isNaN(d)) return;
+      const k = F.Dates.formatDateKey(d);
+      let mb = porBanco.get(entry.bankId);
+      if (!mb) { mb = new Map(); porBanco.set(entry.bankId, mb); }
+      const prev = mb.get(k);
+      if (!prev || entry.ts > prev.ts) mb.set(k, { valor: entry.valor || 0, ts: entry.ts });
+    });
+
+    // Para cada dia em filteredDates, calcula:
+    //   - se houve lançamento de saldo nesse dia (em qualquer banco)
+    //   - "Saldo total bancário" = soma do último valor lançado de cada banco até o dia (inclusive),
+    //     mas SOMENTE quando houve lançamento naquele dia (caso contrário "—")
+    //   - "Saldo do dia considerando bancos" = saldo transportado (carry forward) + net do dia,
+    //     a partir da primeira data com lançamento
+
+    // Pré-calcula, para cada banco, o último lançamento até cada dia em filteredDates
+    // (não só os dias com lançamento — mas é fácil resolver percorrendo as entries ordenadas por data)
+    const allBankEntries = [];
+    porBanco.forEach((m, bankId) => {
+      Array.from(m.entries()).forEach(([dk, info]) => {
+        allBankEntries.push({ bankId, dataKey: dk, valor: info.valor, ts: info.ts });
+      });
+    });
+    allBankEntries.sort((a, b) => a.dataKey.localeCompare(b.dataKey) || a.ts - b.ts);
+
+    // Saldos por banco "vivos" (último valor conhecido até o dia atual)
+    const saldosLive = new Map(); // bankId -> valor
+
+    // Encontra a primeira data (em formato dataKey) em que houve qualquer lançamento
+    const primeiraData = allBankEntries.length ? allBankEntries[0].dataKey : null;
+
+    // Avança através das filteredDates aplicando entries até cada dia
+    let ptr = 0;
+    let fimDoDiaAnterior = null; // null antes da primeira data com lançamento
+    const cells = [];
+
+    filteredDates.forEach((k, i) => {
+      // Aplica todos os lançamentos cuja dataKey é <= k (ordenados crescente)
+      while (ptr < allBankEntries.length && allBankEntries[ptr].dataKey <= k) {
+        const e = allBankEntries[ptr];
+        saldosLive.set(e.bankId, e.valor);
+        ptr++;
+      }
+
+      // Houve lançamento NESTE dia exatamente?
+      const teveLancamentoHoje = allBankEntries.some(e => e.dataKey === k);
+
+      // Saldo transportado para o início do dia
+      // Antes do primeiro dia com lançamento → null
+      let transportado = null;
+      if (primeiraData && k >= primeiraData) {
+        if (teveLancamentoHoje) {
+          // No dia do lançamento, o "início" é a soma dos saldos vivos APÓS aplicar os
+          // lançamentos do dia (porque o lançamento substitui o anterior).
+          let soma = 0;
+          saldosLive.forEach(v => { soma += v; });
+          transportado = soma;
+        } else {
+          // Sem lançamento → carrega o fim do dia anterior
+          transportado = fimDoDiaAnterior != null ? fimDoDiaAnterior : null;
+        }
+      }
+
+      const net = totalsByDate[k]?.net || 0;
+      const fimDoDia = transportado != null ? transportado + net : null;
+
+      cells.push({
+        lancado: teveLancamentoHoje ? transportado : null, // o "lançado" exibido é o saldo total daquele dia
+        transportado,
+        fimDoDia,
+        valido: transportado != null,
+      });
+
+      fimDoDiaAnterior = fimDoDia;
+    });
+
+    return cells;
+  }
+
   function renderGrid(activeVendors, totalsByDate) {
     const grid = document.getElementById('grid');
     const parts = [];
@@ -789,8 +883,10 @@
 
     parts.push('</tbody>');
 
-    // Rodapé — só Saldo do dia
+    // Rodapé — Saldo do dia + Saldo total bancário + Saldo do dia considerando bancos
     parts.push('<tfoot>');
+
+    // Linha 1: Saldo do dia (receber - pagar)
     parts.push('<tr class="saldo"><td class="first">Saldo do dia</td>');
     let saldoTotal = 0;
     filteredDates.forEach(k => {
@@ -800,6 +896,46 @@
       parts.push(`<td class="${cls}">${Math.abs(saldo) < 0.005 ? '–' : F.Fmt.fmtMoneyShort(saldo)}</td>`);
     });
     parts.push(`<td class="${saldoTotal >= 0 ? 'positive-bal' : 'negative-bal'}" style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtMoneyShort(saldoTotal)}</td></tr>`);
+
+    // Linha 2: Saldo total bancário (saldo lançado, aparece SÓ nos dias de lançamento)
+    const bankCells = computeBankSaldoCells(filteredDates, totalsByDate, saldosHistorico);
+    parts.push('<tr class="saldo-banco"><td class="first">Saldo total bancário</td>');
+    filteredDates.forEach((k, i) => {
+      const c = bankCells[i];
+      if (c.lancado != null) {
+        const cls = c.lancado >= 0 ? 'positive-bal' : 'negative-bal';
+        parts.push(`<td class="${cls} bank-launched" title="Saldo lançado em ${F.escapeHTML(F.Fmt.fmtFullDate(F.Dates.parseDateKey(k)))}">${F.Fmt.fmtMoneyShort(c.lancado)}</td>`);
+      } else {
+        parts.push(`<td class="bank-empty">—</td>`);
+      }
+    });
+    parts.push(`<td style="border-left:1.5px solid var(--border-strong);" class="bank-empty">—</td></tr>`);
+
+    // Linha 3: Saldo do dia considerando bancos (transportado + net do dia)
+    parts.push('<tr class="saldo-final"><td class="first">Saldo do dia considerando bancos</td>');
+    let lastFinalShown = null;
+    filteredDates.forEach((k, i) => {
+      const c = bankCells[i];
+      if (c.fimDoDia == null) {
+        parts.push(`<td class="bank-empty">—</td>`);
+      } else {
+        const cls = c.fimDoDia >= 0 ? 'positive-bal' : 'negative-bal';
+        const tooltip = c.lancado != null
+          ? `Saldo recém lançado neste dia, com movimentações aplicadas`
+          : `Saldo bancário transportado do dia anterior`;
+        parts.push(`<td class="${cls}" title="${F.escapeHTML(tooltip)}">${F.Fmt.fmtMoneyShort(c.fimDoDia)}</td>`);
+        lastFinalShown = c.fimDoDia;
+      }
+    });
+    // Coluna Total: usa o último valor de fim de dia (o saldo final do período)
+    if (lastFinalShown != null) {
+      const cls = lastFinalShown >= 0 ? 'positive-bal' : 'negative-bal';
+      parts.push(`<td class="${cls}" style="border-left:1.5px solid var(--border-strong);" title="Saldo no fim do per\u00edodo">${F.Fmt.fmtMoneyShort(lastFinalShown)}</td>`);
+    } else {
+      parts.push(`<td class="bank-empty" style="border-left:1.5px solid var(--border-strong);">—</td>`);
+    }
+    parts.push('</tr>');
+
     parts.push('</tfoot>');
 
     grid.innerHTML = parts.join('');
@@ -1506,6 +1642,13 @@
         fornecedores: 'Por fornecedores — detalhamento completo',
       };
       sub.textContent = (labels[_exportLevel] || '') + ' · Escolha o formato';
+
+      // Esconde formatos incompatíveis com o nível selecionado
+      // (ex: "fornecedores" gera muitas linhas e não cabe bem em PNG)
+      fmtEl.querySelectorAll('[data-format]').forEach(btn => {
+        const notFor = (btn.dataset.notFor || '').split(',').map(s => s.trim()).filter(Boolean);
+        btn.style.display = notFor.includes(_exportLevel) ? 'none' : '';
+      });
     }
   }
 
@@ -1553,7 +1696,13 @@
       sT += s;
       return s;
     });
-    return { activeVendors: sortedVendors, rTotal, receberRow, vendorRows, subOut, totalPagarCells, sT, saldoCells, sortedGroups };
+    // totalsByDate replicado no formato esperado pelo computeBankSaldoCells
+    const totalsByDateForBank = {};
+    filteredDates.forEach((k, i) => {
+      totalsByDateForBank[k] = { in: receberRow[i], out: totalPagarCells[i], net: saldoCells[i] };
+    });
+    const bankCells = computeBankSaldoCells(filteredDates, totalsByDateForBank, saldosHistorico);
+    return { activeVendors: sortedVendors, rTotal, receberRow, vendorRows, subOut, totalPagarCells, sT, saldoCells, sortedGroups, bankCells };
   }
 
   function csvCell(v) {
@@ -1590,6 +1739,18 @@
 
     lines.push(['Saldo do dia', ...ex.saldoCells.map(moneyCsv), moneyCsv(ex.sT)].map(csvCell).join(';'));
 
+    // Linha "Saldo total bancário" — só os dias com lançamento, resto vazio
+    lines.push(['Saldo total bancário', ...ex.bankCells.map(c => c.lancado != null ? moneyCsv(c.lancado) : ''), ''].map(csvCell).join(';'));
+
+    // Linha "Saldo do dia considerando bancos"
+    let lastFinal = null;
+    const finalCells = ex.bankCells.map(c => {
+      if (c.fimDoDia == null) return '';
+      lastFinal = c.fimDoDia;
+      return moneyCsv(c.fimDoDia);
+    });
+    lines.push(['Saldo do dia considerando bancos', ...finalCells, lastFinal != null ? moneyCsv(lastFinal) : ''].map(csvCell).join(';'));
+
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     downloadBlob(blob, getExportFilename('csv', level));
   }
@@ -1625,6 +1786,19 @@
 
         aoa.push(['Saldo do dia', ...ex.saldoCells, ex.sT]);
 
+        // Linha "Saldo total bancário"
+        const bankLancRow = ex.bankCells.map(c => c.lancado != null ? c.lancado : null);
+        aoa.push(['Saldo total bancário', ...bankLancRow, null]);
+
+        // Linha "Saldo do dia considerando bancos"
+        let lastFinalXlsx = null;
+        const finalRow = ex.bankCells.map(c => {
+          if (c.fimDoDia == null) return null;
+          lastFinalXlsx = c.fimDoDia;
+          return c.fimDoDia;
+        });
+        aoa.push(['Saldo do dia considerando bancos', ...finalRow, lastFinalXlsx]);
+
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         const range = XLSX.utils.decode_range(ws['!ref']);
         for (let R = 1; R <= range.e.r; R++) {
@@ -1652,11 +1826,47 @@
     }, 50);
   }
 
+  // Helper: prepara a grade para exportação (timestamp + esconde botões)
+  function _prepareGridForExport() {
+    const card = document.getElementById('grid-card');
+    const ts = document.getElementById('grid-export-timestamp');
+    if (!card || !ts) return null;
+
+    // Formata data/hora atual no horário de Brasília (UTC-3)
+    const agora = new Date();
+    const fmt = new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    });
+    const partes = fmt.formatToParts(agora);
+    const dia = partes.find(p => p.type === 'day').value;
+    const mes = partes.find(p => p.type === 'month').value;
+    const ano = partes.find(p => p.type === 'year').value;
+    const hora = partes.find(p => p.type === 'hour').value;
+    const min = partes.find(p => p.type === 'minute').value;
+    const tsTexto = `Exportado em ${dia}/${mes}/${ano} às ${hora}:${min}`;
+
+    ts.textContent = tsTexto;
+    ts.classList.add('show');
+    card.classList.add('exporting');
+
+    return { card, ts };
+  }
+
+  function _restoreGridAfterExport(state) {
+    if (!state) return;
+    state.card.classList.remove('exporting');
+    state.ts.classList.remove('show');
+    state.ts.textContent = '';
+  }
+
   async function exportPNG(level) {
     level = level || 'fornecedores';
     F.UI.showLoading('Gerando imagem…');
     const card = document.getElementById('grid-card');
     const scroll = document.getElementById('grid-scroll');
+    const kpiSection = document.querySelector('.kpi-wrap');
     const originalMaxHeight = scroll.style.maxHeight;
 
     // Salva o estado atual de expansão para restaurar depois
@@ -1684,15 +1894,52 @@
     }
     render();
 
+    // Prepara timestamp e esconde botões da grade
+    const exportState = _prepareGridForExport();
+
     scroll.style.maxHeight = 'none';
     scroll.classList.add('export-mode');
+
+    // Cria um wrapper temporário fora da tela contendo: KPIs (clonados) + grade (clonada)
+    // Assim capturamos ambos numa única imagem sem afetar o layout da página atual
+    let wrapper = null;
     try {
       await new Promise(r => setTimeout(r, 150)); // dá tempo do render aplicar
-      const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
+
+      wrapper = document.createElement('div');
+      wrapper.style.position = 'fixed';
+      wrapper.style.left = '-99999px';
+      wrapper.style.top = '0';
+      wrapper.style.width = card.offsetWidth + 'px';
+      wrapper.style.background = '#ffffff';
+      wrapper.style.padding = '20px';
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      wrapper.style.gap = '14px';
+
+      if (kpiSection) {
+        const kpiClone = kpiSection.cloneNode(true);
+        kpiClone.style.padding = '0';
+        wrapper.appendChild(kpiClone);
+      }
+      const gridClone = card.cloneNode(true);
+      // Remove maxHeight do scroll clonado para mostrar tudo
+      const scrollClone = gridClone.querySelector('#grid-scroll');
+      if (scrollClone) {
+        scrollClone.style.maxHeight = 'none';
+        scrollClone.style.overflow = 'visible';
+        scrollClone.id = 'grid-scroll-export-clone'; // evita id duplicado no DOM
+      }
+      wrapper.appendChild(gridClone);
+      document.body.appendChild(wrapper);
+
+      const canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
       canvas.toBlob(blob => {
         if (blob) downloadBlob(blob, getExportFilename('png', level));
         scroll.style.maxHeight = originalMaxHeight;
         scroll.classList.remove('export-mode');
+        _restoreGridAfterExport(exportState);
+        if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
         // Restaura estado original
         expandedPagarTotal = prevPagar;
         expandedReceber = prevReceber;
@@ -1704,6 +1951,8 @@
       console.error(err);
       scroll.style.maxHeight = originalMaxHeight;
       scroll.classList.remove('export-mode');
+      _restoreGridAfterExport(exportState);
+      if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
       expandedPagarTotal = prevPagar;
       expandedReceber = prevReceber;
       expandedCategories = prevCats;
@@ -1795,6 +2044,42 @@
           { content: fmtMoneyForPdf(sTChunk), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: sTChunk >= 0 ? [28, 167, 236] : [255, 121, 113] } },
         ]);
 
+        // Linha "Saldo total bancário" — fundo intermediário, valores apenas onde houve lançamento
+        const bankBgPdf = [31, 39, 51];
+        const bankFgPdf = [203, 213, 225];
+        const bankFgEmptyPdf = [100, 116, 139];
+        body.push([
+          { content: 'Saldo total bancário', styles: { fontStyle: 'bold', fillColor: bankBgPdf, textColor: [226, 232, 240] } },
+          ...chunkIndices.map(i => {
+            const c = ex.bankCells[i];
+            if (c.lancado != null) {
+              const cellBg = [42, 58, 79]; // destaque para dia com lançamento
+              return { content: fmtMoneyForPdf(c.lancado), styles: { fontStyle: 'bold', fillColor: cellBg, textColor: c.lancado >= 0 ? [28, 167, 236] : [255, 121, 113] } };
+            }
+            return { content: '–', styles: { fontStyle: 'normal', fillColor: bankBgPdf, textColor: bankFgEmptyPdf } };
+          }),
+          { content: '–', styles: { fillColor: bankBgPdf, textColor: bankFgEmptyPdf } },
+        ]);
+
+        // Linha "Saldo do dia considerando bancos" — destaque preto com cor por sinal
+        // Total da coluna mostra o último fimDoDia visto (saldo no fim do período no chunk)
+        let lastFinalChunk = null;
+        const finalChunkCells = chunkIndices.map(i => {
+          const c = ex.bankCells[i];
+          if (c.fimDoDia == null) {
+            return { content: '–', styles: { fontStyle: 'normal', fillColor: [10, 14, 22], textColor: bankFgEmptyPdf } };
+          }
+          lastFinalChunk = c.fimDoDia;
+          return { content: fmtMoneyForPdf(c.fimDoDia), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: c.fimDoDia >= 0 ? [28, 167, 236] : [255, 121, 113] } };
+        });
+        body.push([
+          { content: 'Saldo do dia considerando bancos', styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: [255, 255, 255], fontSize: 7 } },
+          ...finalChunkCells,
+          lastFinalChunk != null
+            ? { content: fmtMoneyForPdf(lastFinalChunk), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: lastFinalChunk >= 0 ? [28, 167, 236] : [255, 121, 113] } }
+            : { content: '–', styles: { fillColor: [10, 14, 22], textColor: bankFgEmptyPdf } },
+        ]);
+
         if (chunkIdx > 0) doc.addPage();
         doc.setFillColor(10, 14, 22);
         doc.rect(0, 0, pageW, 14, 'F');
@@ -1807,10 +2092,60 @@
         const pageInfoText = dateChunks.length > 1 ? `Parte ${chunkIdx + 1}/${dateChunks.length} · ` : '';
         doc.text(`${pageInfoText}${periodText} · ${modeText} · ${levelText}`, pageW - margin, 9, { align: 'right' });
 
+        // KPI cards (somente na primeira página)
+        let tableStartY = 18;
+        if (chunkIdx === 0) {
+          // Calcula KPIs
+          const kpiReceber = ex.rTotal;
+          const kpiPagar = ex.subOut;
+          const kpiSaldo = kpiReceber - kpiPagar;
+          const kpiDeficit = ex.saldoCells.filter(v => v < 0).length;
+          const kpiDias = filteredDates.length;
+
+          // Layout dos 4 cards
+          const kpiY = 18;
+          const kpiH = 18;
+          const kpiGap = 4;
+          const kpiW = (pageW - 2 * margin - 3 * kpiGap) / 4;
+
+          const drawKpi = (idx, label, value, sub, valueColor) => {
+            const x = margin + idx * (kpiW + kpiGap);
+            // fundo
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(228, 232, 238);
+            doc.setLineWidth(0.2);
+            doc.roundedRect(x, kpiY, kpiW, kpiH, 1.5, 1.5, 'FD');
+            // label
+            doc.setTextColor(107, 114, 128);
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'normal');
+            doc.text(label.toUpperCase(), x + 3, kpiY + 4);
+            // value
+            doc.setTextColor(...valueColor);
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(value, x + 3, kpiY + 10.5);
+            // sub
+            doc.setTextColor(107, 114, 128);
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'normal');
+            doc.text(sub, x + 3, kpiY + 15);
+          };
+
+          drawKpi(0, 'Total a receber', `R$ ${F.Fmt.fmtMoneyShort(kpiReceber)}`, `em ${kpiDias} dias`, [10, 110, 158]);
+          drawKpi(1, 'Total a pagar', `R$ ${F.Fmt.fmtMoneyShort(kpiPagar)}`, `em ${kpiDias} dias`, [180, 35, 24]);
+          drawKpi(2, 'Saldo líquido', `${kpiSaldo < 0 ? '-' : ''}R$ ${F.Fmt.fmtMoneyShort(Math.abs(kpiSaldo))}`,
+                  kpiSaldo >= 0 ? 'Superavit no período' : 'Deficit no período',
+                  kpiSaldo >= 0 ? [10, 110, 158] : [180, 35, 24]);
+          drawKpi(3, 'Dias com deficit', String(kpiDeficit), `de ${kpiDias} dias`, [10, 14, 22]);
+
+          tableStartY = kpiY + kpiH + 4;
+        }
+
         doc.autoTable({
           head: head,
           body: body,
-          startY: 18,
+          startY: tableStartY,
           margin: { left: margin, right: margin },
           theme: 'grid',
           styles: { fontSize: 7.5, cellPadding: 2, lineColor: [228, 232, 238], lineWidth: 0.1, overflow: 'linebreak' },
@@ -1909,13 +2244,13 @@
     // Saldos atuais (último lançamento de cada banco)
     const atuais = F.DB.computeCurrentSaldos(saldosHistorico);
 
-    // Separa por tipo e ordena
+    // Separa por tipo e ordena alfabeticamente pelo nome
     const livres = bancosAtivos
       .filter(([id, b]) => b.tipo === 'livre')
-      .sort(([idA, a], [idB, b]) => (a.ordem || 999) - (b.ordem || 999) || (a.nome || '').localeCompare(b.nome || ''));
+      .sort(([idA, a], [idB, b]) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
     const vinculadas = bancosAtivos
       .filter(([id, b]) => b.tipo === 'vinculada')
-      .sort(([idA, a], [idB, b]) => (a.ordem || 999) - (b.ordem || 999) || (a.nome || '').localeCompare(b.nome || ''));
+      .sort(([idA, a], [idB, b]) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
 
     // Calcula totais por grupo
     let totalLivre = 0, totalVinculada = 0;
@@ -2193,7 +2528,7 @@
     if (sel) {
       const bancosOrdenados = Object.entries(bancos)
         .filter(([id, b]) => b)
-        .sort(([, a], [, b]) => (a.ordem || 999) - (b.ordem || 999));
+        .sort(([, a], [, b]) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
       sel.innerHTML = '<option value="">Todos os bancos</option>' +
         bancosOrdenados.map(([id, b]) => `<option value="${F.escapeHTML(id)}">${F.escapeHTML(b.nome)}</option>`).join('');
     }
@@ -2299,7 +2634,7 @@
     const select = document.getElementById('lancar-saldo-banco');
     const bancosAtivos = Object.entries(bancos)
       .filter(([id, b]) => b && !b.arquivado)
-      .sort(([, a], [, b]) => (a.ordem || 999) - (b.ordem || 999));
+      .sort(([, a], [, b]) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
 
     if (!bancosAtivos.length) {
       // Tenta criar os 19 bancos padrão agora mesmo (último recurso)
