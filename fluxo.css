@@ -134,9 +134,9 @@ table.grid thead th {
   top: 0;
   z-index: 3;
   background: var(--brand-black);
-  padding: 12px 12px;
+  padding: 8px 10px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   color: #ffffff;
   text-transform: none;
@@ -167,10 +167,10 @@ table.grid th.first, table.grid td.first {
   z-index: 2;
   background: var(--surface);
   text-align: left;
-  padding: 10px 16px;
+  padding: 6px 12px;
   border-right: 1.5px solid var(--border-strong);
-  min-width: 240px;
-  max-width: 300px;
+  min-width: 220px;
+  max-width: 280px;
 }
 /* Conteúdo dentro da coluna fixa não pode transbordar:
    usa div interno com overflow hidden (evita conflito com position: sticky no td) */
@@ -311,19 +311,19 @@ table.grid tbody tr:hover .row-actions { opacity: 1; }
 
 /* Células de dados */
 table.grid tbody td {
-  padding: 5px 12px;
+  padding: 3px 10px;
   border-bottom: 1px solid var(--border);
   text-align: right;
   white-space: nowrap;
   color: var(--text);
-  font-size: 12px;
+  font-size: 11.5px;
   position: relative;
 }
 table.grid tbody td.first {
   font-weight: 500;
   color: var(--text);
-  font-size: 13px;
-  padding: 5px 16px;
+  font-size: 12px;
+  padding: 3px 12px;
 }
 table.grid tbody td.weekend { background: var(--surface-3); }
 table.grid tbody td.empty {
@@ -452,33 +452,36 @@ table.grid tfoot td.first {
 table.grid tfoot tr.saldo td {
   background: var(--brand-black);
   color: #fff;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   border-top: 2px solid var(--accent);
+  padding: 5px 10px;
 }
 table.grid tfoot tr.saldo td.first {
   background: var(--brand-black);
   color: #fff;
-  font-size: 13px;
+  font-size: 12.5px;
+  padding: 5px 12px;
 }
 table.grid tfoot tr.saldo td.positive-bal { color: var(--accent); }
 table.grid tfoot tr.saldo td.negative-bal { color: #ff7971; }
 
-/* Linha "Saldo do dia considerando bancos" — destaque máximo, com legenda interna */
+/* Linha "Saldo do dia com bancos" — destaque máximo, com legenda interna */
 table.grid tfoot tr.saldo-final td {
   background: var(--brand-black);
   color: #fff;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   border-top: 2px solid var(--accent);
   vertical-align: top;
-  padding: 8px 10px;
+  padding: 5px 10px;
 }
 table.grid tfoot tr.saldo-final td.first {
   background: var(--brand-black);
   color: #fff;
-  font-size: 12.5px;
+  font-size: 12px;
   vertical-align: middle;
+  padding: 5px 12px;
 }
 table.grid tfoot tr.saldo-final td.positive-bal { color: var(--accent); }
 table.grid tfoot tr.saldo-final td.negative-bal { color: #ff7971; }
@@ -486,20 +489,20 @@ table.grid tfoot tr.saldo-final td.bank-empty { color: #64748b; font-weight: 500
 
 /* Conteúdo da célula: valor em cima + legenda em baixo */
 table.grid tfoot tr.saldo-final td .sf-value {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   font-family: 'JetBrains Mono', monospace;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 table.grid tfoot tr.saldo-final td .sf-legend {
-  font-size: 9px;
+  font-size: 7.5px;
   font-weight: 500;
   font-family: 'Archivo', sans-serif;
-  line-height: 1.2;
+  line-height: 1.15;
   margin-top: 2px;
   color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 table.grid tfoot tr.saldo-final td .sf-legend.launched {
   color: var(--accent);
@@ -588,11 +591,11 @@ tr[data-toggle-cat]:hover .expander {
 /* Linha de categoria */
 table.grid tbody tr.cat-row td {
   background: #fafbfd;
-  padding: 6px 12px;
+  padding: 4px 10px;
   text-align: right;
   white-space: nowrap;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text);
   border-bottom: 1px solid var(--border);
 }
@@ -603,11 +606,12 @@ table.grid tbody tr.cat-row td.first {
   background: #fafbfd;
   font-family: 'Archivo', sans-serif;
   text-align: left;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text);
   position: sticky;
   left: 0;
   z-index: 2;
+  padding: 4px 12px;
 }
 table.grid tbody tr.cat-row:hover td.first {
   background: #f1f3f7;
@@ -1211,7 +1215,7 @@ table.grid tbody tr.sub-row:hover td.first {
 
 /* Grupos e lista */
 .saldos-grupo {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 .saldos-grupo:last-child { margin-bottom: 0; }
 .saldos-grupo-titulo {
@@ -1221,23 +1225,23 @@ table.grid tbody tr.sub-row:hover td.first {
   letter-spacing: 0.12em;
   color: var(--text-muted);
   text-transform: uppercase;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--border);
 }
 .saldos-lista {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px;
 }
 .saldo-item {
   display: grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 28px 1fr;
   grid-template-rows: auto auto;
   align-items: center;
-  column-gap: 12px;
-  row-gap: 4px;
-  padding: 10px 12px;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -1248,15 +1252,15 @@ table.grid tbody tr.sub-row:hover td.first {
   background: var(--accent-bg);
 }
 .saldo-item .bank-badge {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   display: grid;
   place-items: center;
   background: var(--brand-black);
   color: #fff;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
   grid-row: 1 / 3;
@@ -1269,36 +1273,37 @@ table.grid tbody tr.sub-row:hover td.first {
   min-width: 0;
 }
 .saldo-item .bank-nome {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 .saldo-item .bank-ts {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--text-muted);
-  margin-top: 1px;
+  margin-top: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 .saldo-item .bank-valor {
   grid-row: 2;
   grid-column: 2;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  padding: 4px 8px;
+  padding: 2px 7px;
   border-radius: 5px;
   background: var(--surface-2);
   border: 1px dashed transparent;
   cursor: pointer;
   transition: all 0.15s;
-  min-width: 90px;
+  min-width: 80px;
   text-align: right;
   justify-self: start;
   /* Garantir que toque funcione no iOS */
@@ -1399,9 +1404,18 @@ table.grid tbody tr.sub-row:hover td.first {
 /* Responsivo */
 @media (max-width: 720px) {
   .saldos-totais { grid-template-columns: 1fr; gap: 8px; }
-  .saldos-lista { grid-template-columns: 1fr; }
-  .saldos-card { padding: 16px; }
+  .saldos-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .saldos-card { padding: 14px; }
+  .saldo-item { padding: 5px 8px; column-gap: 7px; row-gap: 1px; }
   .saldo-item .bank-delete { opacity: 1; }
+}
+@media (max-width: 480px) {
+  .saldos-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .saldo-item { padding: 5px 6px; column-gap: 5px; }
+  .saldo-item .bank-badge { width: 26px; height: 26px; font-size: 9px; border-radius: 6px; }
+  .saldo-item .bank-nome { font-size: 11.5px; }
+  .saldo-item .bank-ts { font-size: 8.5px; }
+  .saldo-item .bank-valor { font-size: 11.5px; padding: 2px 5px; min-width: 0; }
 }
 
 /* ========== Campo de recorrência no form (Fase 5) ========== */

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=6.5">
+<link rel="stylesheet" href="shared.css?v=6.9">
 <style>
   .period-selector {
     margin-top: 16px;
@@ -577,7 +577,14 @@
     .page-head h1 { font-size: 22px; }
     .page-head .desc { font-size: 12.5px; }
 
-    .days-grid { grid-template-columns: 1fr; }
+    .days-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .day-stat { padding: 10px 6px; }
+    .day-stat .num { font-size: 22px; }
+    .day-stat .lbl { font-size: 9px; letter-spacing: 0.05em; }
+    .day-stat .pct { font-size: 10px; margin-top: 3px; }
     .weekday-chart { gap: 4px; }
     .weekday-col .day-label { font-size: 9px; }
   }
@@ -788,7 +795,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
-<script src="shared.js?v=6.5"></script>
+<script src="shared.js?v=6.9"></script>
 
 <script>
 (function() {
