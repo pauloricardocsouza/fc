@@ -106,7 +106,7 @@
     unsubscribes.push(F.DB.subscribeSaldosHistorico(data => {
       saldosHistorico = data || {};
       renderSaldosPanel();
-      // Atualiza também o fluxo (linhas "Saldo total bancário" e "Saldo do dia considerando bancos")
+      // Atualiza também o fluxo (linhas "Saldo total bancário" e "Saldo do dia com bancos")
       if (processed) render();
     }));
     // Cria bancos padrão se for a primeira vez (só roda se for editor+)
@@ -653,7 +653,7 @@
     //   - se houve lançamento de saldo nesse dia (em qualquer banco)
     //   - "Saldo total bancário" = soma do último valor lançado de cada banco até o dia (inclusive),
     //     mas SOMENTE quando houve lançamento naquele dia (caso contrário "—")
-    //   - "Saldo do dia considerando bancos" = saldo transportado (carry forward) + net do dia,
+    //   - "Saldo do dia com bancos" = saldo transportado (carry forward) + net do dia,
     //     a partir da primeira data com lançamento
 
     // Pré-calcula, para cada banco, o último lançamento até cada dia em filteredDates
@@ -774,7 +774,7 @@
       : '<span class="expander disabled">·</span>';
 
     parts.push('<tr class="total-row total-in" data-toggle-receber="1" style="cursor:' + (hasReceberManual ? 'pointer' : 'default') + ';">');
-    parts.push(`<td class="first">${receberExpanderIcon} Contas a Receber (Total)</td>`);
+    parts.push(`<td class="first">${receberExpanderIcon} Contas a Receber</td>`);
     filteredDates.forEach(k => {
       const d = F.Dates.parseDateKey(k);
       const we = F.Dates.isWeekend(d) ? ' weekend' : '';
@@ -835,7 +835,7 @@
       : '<span class="expander" title="Expandir">▸</span>';
 
     parts.push('<tr class="total-row total-out" data-toggle-pagar="1" style="cursor:pointer;">');
-    parts.push(`<td class="first">${pagarExpanderIcon} Contas a Pagar (Total)</td>`);
+    parts.push(`<td class="first">${pagarExpanderIcon} Contas a Pagar</td>`);
     filteredDates.forEach(k => {
       const d = F.Dates.parseDateKey(k);
       const we = F.Dates.isWeekend(d) ? ' weekend' : '';
@@ -902,7 +902,7 @@
 
     parts.push('</tbody>');
 
-    // Rodapé — Saldo do dia + Saldo do dia considerando bancos
+    // Rodapé — Saldo do dia + Saldo do dia com bancos
     parts.push('<tfoot>');
 
     // Linha 1: Saldo do dia (receber - pagar)
@@ -916,10 +916,10 @@
     });
     parts.push(`<td class="${saldoTotal >= 0 ? 'positive-bal' : 'negative-bal'}" style="border-left:1.5px solid var(--border-strong);">${F.Fmt.fmtMoneyShort(saldoTotal)}</td></tr>`);
 
-    // Linha 2: Saldo do dia considerando bancos (transportado + net do dia)
+    // Linha 2: Saldo do dia com bancos (transportado + net do dia)
     // Cada célula tem o valor + uma sub-legenda "Saldo lançado" ou "Saldo transportado"
     const bankCells = computeBankSaldoCells(filteredDates, totalsByDate, saldosHistorico);
-    parts.push('<tr class="saldo-final"><td class="first">Saldo do dia considerando bancos</td>');
+    parts.push('<tr class="saldo-final"><td class="first">Saldo do dia com bancos</td>');
     let lastFinalShown = null;
     filteredDates.forEach((k, i) => {
       const c = bankCells[i];
@@ -1016,7 +1016,7 @@
         return;
       }
 
-      // Toggle linha "Contas a Pagar (Total)"
+      // Toggle linha "Contas a Pagar"
       const pagarRow = target.closest('[data-toggle-pagar]');
       if (pagarRow) {
         expandedPagarTotal = !expandedPagarTotal;
@@ -1024,7 +1024,7 @@
         return;
       }
 
-      // Toggle linha "Contas a Receber (Total)"
+      // Toggle linha "Contas a Receber"
       const receberRow = target.closest('[data-toggle-receber]');
       if (receberRow) {
         // Ignora clique em células com data-detail ou data-add (cliques em valores reais)
@@ -1728,8 +1728,8 @@
     const lines = [];
     const header = ['Item', ...filteredDates.map(k => F.Fmt.fmtFullDate(F.Dates.parseDateKey(k))), 'Total'];
     lines.push(header.map(csvCell).join(';'));
-    lines.push(['Contas a Receber (Total)', ...ex.receberRow.map(moneyCsv), moneyCsv(ex.rTotal)].map(csvCell).join(';'));
-    lines.push(['Contas a Pagar (Total)', ...ex.totalPagarCells.map(moneyCsv), moneyCsv(ex.subOut)].map(csvCell).join(';'));
+    lines.push(['Contas a Receber', ...ex.receberRow.map(moneyCsv), moneyCsv(ex.rTotal)].map(csvCell).join(';'));
+    lines.push(['Contas a Pagar', ...ex.totalPagarCells.map(moneyCsv), moneyCsv(ex.subOut)].map(csvCell).join(';'));
 
     // Categorias e fornecedores (apenas se o nível pedir)
     if (level !== 'sintetico') {
@@ -1749,14 +1749,14 @@
 
     lines.push(['Saldo do dia', ...ex.saldoCells.map(moneyCsv), moneyCsv(ex.sT)].map(csvCell).join(';'));
 
-    // Linha "Saldo do dia considerando bancos" — com legenda em linha separada (lançado/transportado)
+    // Linha "Saldo do dia com bancos" — com legenda em linha separada (lançado/transportado)
     let lastFinal = null;
     const finalCells = ex.bankCells.map(c => {
       if (c.fimDoDia == null) return '';
       lastFinal = c.fimDoDia;
       return moneyCsv(c.fimDoDia);
     });
-    lines.push(['Saldo do dia considerando bancos', ...finalCells, lastFinal != null ? moneyCsv(lastFinal) : ''].map(csvCell).join(';'));
+    lines.push(['Saldo do dia com bancos', ...finalCells, lastFinal != null ? moneyCsv(lastFinal) : ''].map(csvCell).join(';'));
 
     // Linha auxiliar com a indicação Lançado/Transportado para cada dia
     const tipoCells = ex.bankCells.map(c => {
@@ -1777,8 +1777,8 @@
         const ex = collectExportData();
         const aoa = [];
         aoa.push(['Item', ...filteredDates.map(k => F.Fmt.fmtFullDate(F.Dates.parseDateKey(k))), 'Total']);
-        aoa.push(['Contas a Receber (Total)', ...ex.receberRow, ex.rTotal]);
-        aoa.push(['Contas a Pagar (Total)', ...ex.totalPagarCells, ex.subOut]);
+        aoa.push(['Contas a Receber', ...ex.receberRow, ex.rTotal]);
+        aoa.push(['Contas a Pagar', ...ex.totalPagarCells, ex.subOut]);
 
         // Categorias e fornecedores (apenas se nível pedir)
         const catRowIndices = [];
@@ -1800,14 +1800,14 @@
 
         aoa.push(['Saldo do dia', ...ex.saldoCells, ex.sT]);
 
-        // Linha "Saldo do dia considerando bancos"
+        // Linha "Saldo do dia com bancos"
         let lastFinalXlsx = null;
         const finalRow = ex.bankCells.map(c => {
           if (c.fimDoDia == null) return null;
           lastFinalXlsx = c.fimDoDia;
           return c.fimDoDia;
         });
-        aoa.push(['Saldo do dia considerando bancos', ...finalRow, lastFinalXlsx]);
+        aoa.push(['Saldo do dia com bancos', ...finalRow, lastFinalXlsx]);
 
         // Linha de tipo (lançado/transportado) sob a linha anterior
         const tipoRow = ex.bankCells.map(c => {
@@ -2018,13 +2018,13 @@
         const body = [];
         const rTotalChunk = chunkIndices.reduce((a, i) => a + ex.receberRow[i], 0);
         body.push([
-          { content: 'Contas a Receber (Total)', styles: { fontStyle: 'bold', fillColor: [212, 234, 250], textColor: [10, 110, 158] } },
+          { content: 'Contas a Receber', styles: { fontStyle: 'bold', fillColor: [212, 234, 250], textColor: [10, 110, 158] } },
           ...chunkIndices.map(i => ({ content: fmtMoneyForPdf(ex.receberRow[i]), styles: { fontStyle: 'bold', fillColor: [212, 234, 250], textColor: [10, 110, 158] } })),
           { content: fmtMoneyForPdf(rTotalChunk), styles: { fontStyle: 'bold', fillColor: [212, 234, 250], textColor: [10, 110, 158] } },
         ]);
         const pTotalChunk = chunkIndices.reduce((a, i) => a + ex.totalPagarCells[i], 0);
         body.push([
-          { content: 'Contas a Pagar (Total)', styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } },
+          { content: 'Contas a Pagar', styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } },
           ...chunkIndices.map(i => ({ content: fmtMoneyForPdf(ex.totalPagarCells[i]), styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } })),
           { content: fmtMoneyForPdf(pTotalChunk), styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } },
         ]);
@@ -2063,7 +2063,7 @@
 
         const bankFgEmptyPdf = [100, 116, 139];
 
-        // Linha "Saldo do dia considerando bancos" — destaque preto com cor por sinal
+        // Linha "Saldo do dia com bancos" — destaque preto com cor por sinal
         // Total da coluna mostra o último fimDoDia visto (saldo no fim do período no chunk)
         let lastFinalChunk = null;
         const finalChunkCells = chunkIndices.map(i => {
@@ -2075,7 +2075,7 @@
           return { content: fmtMoneyForPdf(c.fimDoDia), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: c.fimDoDia >= 0 ? [28, 167, 236] : [255, 121, 113] } };
         });
         body.push([
-          { content: 'Saldo do dia considerando bancos', styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: [255, 255, 255], fontSize: 7 } },
+          { content: 'Saldo do dia com bancos', styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: [255, 255, 255], fontSize: 7 } },
           ...finalChunkCells,
           lastFinalChunk != null
             ? { content: fmtMoneyForPdf(lastFinalChunk), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: lastFinalChunk >= 0 ? [28, 167, 236] : [255, 121, 113] } }
