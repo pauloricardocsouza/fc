@@ -22,54 +22,6 @@
 .ctrl-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ctrl-row input[type="date"] { width: auto; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 8px 12px; }
 
-/* ============ Export dropdown ============ */
-.export-wrap { position: relative; display: inline-block; }
-.export-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(10, 14, 22, 0.12);
-  min-width: 220px;
-  padding: 6px;
-  z-index: 30;
-  display: none;
-}
-.export-menu.open { display: block; }
-.export-menu button {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 6px;
-  text-align: left;
-  transition: background 0.15s;
-}
-.export-menu button:hover { background: var(--surface-2); }
-.export-menu button .ico {
-  width: 28px; height: 28px;
-  border-radius: 6px;
-  display: grid; place-items: center;
-  color: var(--accent-text);
-  background: var(--accent-bg);
-  flex-shrink: 0;
-}
-.export-menu button.pdf .ico { color: var(--danger-text); background: var(--danger-bg); }
-.export-menu button.png .ico { color: var(--warning); background: var(--warning-bg); }
-.export-menu button.csv .ico { color: var(--text-dim); background: var(--surface-3); }
-.export-menu button .lbl { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.export-menu button .lbl .t { font-weight: 600; font-size: 13px; }
-.export-menu button .lbl .d { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
-
 /* ============ KPIs ============ */
 .kpi-wrap {
   padding: 18px 28px;
@@ -982,13 +934,6 @@ table.grid tbody tr.sub-row:hover td.first {
     justify-content: center;
     white-space: nowrap;
   }
-  .ctrl-group:last-child .ctrl-row .export-wrap {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-  .ctrl-group:last-child .ctrl-row .export-wrap .btn {
-    width: 100%;
-  }
 
   .grid-head { padding: 12px 14px; }
   .grid-head h3 { font-size: 14px; }
@@ -1000,7 +945,6 @@ table.grid tbody tr.sub-row:hover td.first {
   .modal .foot .total-value { font-size: 16px; }
   .modal-form { padding: 16px; }
   .form-grid-2 { grid-template-columns: 1fr; }
-  .export-menu { min-width: 200px; right: -10px; }
   .comments-section { padding: 14px 16px; }
 }
 
@@ -1111,6 +1055,65 @@ table.grid tbody tr.sub-row:hover td.first {
 .saldos-card.exporting .saldos-sub { display: none !important; }
 .saldos-card.exporting .bank-valor-input { display: none !important; }
 .saldos-card.exporting .bank-edit-hint { display: none !important; }
+
+/* Modal de exportação do fluxo (2 etapas: nível de detalhe + formato) */
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px 4px;
+}
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  font-family: inherit;
+  width: 100%;
+}
+.export-option:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  transform: translateY(-1px);
+}
+.export-option:active { transform: translateY(0); }
+.export-option-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.export-option-body {
+  flex: 1;
+  min-width: 0;
+}
+.export-option-title {
+  font-family: 'Archivo', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.export-option-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.export-back {
+  padding: 8px 20px 18px;
+  display: flex;
+  justify-content: flex-start;
+}
 
 /* Totais consolidados */
 .saldos-totais {

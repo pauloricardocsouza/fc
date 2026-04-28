@@ -34,7 +34,7 @@
   let fornecedorMap = {};        // { normKey: { categoriaId, fornecedorNome } }
   let expandedCategories = new Set(); // categoria expandida
   let expandedReceber = false;   // total a receber expandido (só com manuais)
-  let expandedPagarTotal = false; // total a pagar expandido em categorias
+  let expandedPagarTotal = true; // total a pagar expandido em categorias (padrão: aberto)
 
   // Fase 3 — Saldos bancários
   let bancos = {};               // { bankId: { nome, tipo, ordem, arquivado } }
@@ -397,21 +397,28 @@
     document.getElementById('btn-add').addEventListener('click', () => openForm());
 
     const exportBtn = document.getElementById('btn-export-toggle');
-    const exportMenu = document.getElementById('export-menu');
-    exportBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      exportMenu.classList.toggle('open');
-    });
-    document.addEventListener('click', (e) => {
-      if (!exportMenu.contains(e.target) && e.target !== exportBtn) {
-        exportMenu.classList.remove('open');
-      }
-    });
-    exportMenu.querySelectorAll('button[data-export]').forEach(btn => {
+    exportBtn.addEventListener('click', openExportModal);
+
+    // Handlers do modal de exportação (2 etapas)
+    document.querySelectorAll('#export-modal [data-level]').forEach(btn => {
       btn.addEventListener('click', () => {
-        exportMenu.classList.remove('open');
-        runExport(btn.dataset.export);
+        _exportLevel = btn.dataset.level;
+        showExportStep('format');
       });
+    });
+    document.querySelectorAll('#export-modal [data-format]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const formato = btn.dataset.format;
+        closeExportModal();
+        runExport(formato, _exportLevel);
+      });
+    });
+    document.getElementById('btn-export-back')?.addEventListener('click', () => showExportStep('level'));
+    document.querySelectorAll('#export-modal [data-close="export"]').forEach(el => {
+      el.addEventListener('click', closeExportModal);
+    });
+    document.getElementById('export-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'export-modal') closeExportModal();
     });
 
     document.getElementById('form-type-toggle').querySelectorAll('button').forEach(btn => {
@@ -424,6 +431,9 @@
     });
     document.getElementById('btn-save').addEventListener('click', saveProvision);
     document.getElementById('btn-add-comment').addEventListener('click', addComment);
+
+    // Formatação automática de milhar no campo de valor do lançamento
+    formatValueOnInput(document.getElementById('form-value'));
 
     // Listeners da recorrência (Fase 5)
     const recurCheck = document.getElementById('form-recurrence');
@@ -971,7 +981,7 @@
     const tipo = document.getElementById('form-type-toggle').querySelector('.active').dataset.type;
     const entidade = document.getElementById('form-entity').value.trim().toUpperCase();
     const dateVal = document.getElementById('form-date').value;
-    const valor = parseFloat(document.getElementById('form-value').value);
+    const valor = parseValueFlex(document.getElementById('form-value').value);
     const documento = document.getElementById('form-doc').value.trim();
     const nota = document.getElementById('form-note').value.trim();
     const recurChecked = document.getElementById('form-recurrence')?.checked;
@@ -1459,18 +1469,54 @@
   }
 
   /* ========== Export da grade ========== */
-  function getExportFilename(ext) {
+  function getExportFilename(ext, level) {
     const s = document.getElementById('filter-start').value;
     const e = document.getElementById('filter-end').value;
-    return `filadelfia_fluxo_caixa_${s}_a_${e}.${ext}`;
+    const suffix = level && level !== 'fornecedores' ? `_${level}` : '';
+    return `filadelfia_fluxo_caixa${suffix}_${s}_a_${e}.${ext}`;
   }
-  function runExport(kind) {
+  // Modal de exportação — controle de estado
+  let _exportLevel = 'fornecedores'; // padrão
+
+  function openExportModal() {
+    if (!filteredDates.length) {
+      F.UI.showToast('Nenhum dado no período', 'error');
+      return;
+    }
+    showExportStep('level');
+    document.getElementById('export-modal').classList.add('open');
+  }
+  function closeExportModal() {
+    document.getElementById('export-modal').classList.remove('open');
+  }
+  function showExportStep(step) {
+    const lvlEl = document.getElementById('export-step-level');
+    const fmtEl = document.getElementById('export-step-format');
+    const sub = document.getElementById('export-modal-sub');
+    if (step === 'level') {
+      lvlEl.style.display = '';
+      fmtEl.style.display = 'none';
+      sub.textContent = 'Escolha o nível de detalhamento';
+    } else {
+      lvlEl.style.display = 'none';
+      fmtEl.style.display = '';
+      const labels = {
+        sintetico: 'Sintético — apenas totais e saldo do dia',
+        categorias: 'Por categorias — agrupado dentro de Contas a Pagar',
+        fornecedores: 'Por fornecedores — detalhamento completo',
+      };
+      sub.textContent = (labels[_exportLevel] || '') + ' · Escolha o formato';
+    }
+  }
+
+  function runExport(kind, level) {
     if (!filteredDates.length) { F.UI.showToast('Nenhum dado no período', 'error'); return; }
+    const lvl = level || 'fornecedores';
     switch (kind) {
-      case 'csv': exportCSV(); break;
-      case 'xlsx': exportXLSX(); break;
-      case 'pdf': exportPDF(); break;
-      case 'png': exportPNG(); break;
+      case 'csv': exportCSV(lvl); break;
+      case 'xlsx': exportXLSX(lvl); break;
+      case 'pdf': exportPDF(lvl); break;
+      case 'png': exportPNG(lvl); break;
     }
   }
 
@@ -1517,7 +1563,8 @@
   }
   function moneyCsv(v) { return v.toFixed(2).replace('.', ','); }
 
-  function exportCSV() {
+  function exportCSV(level) {
+    level = level || 'fornecedores';
     const ex = collectExportData();
     const lines = [];
     const header = ['Item', ...filteredDates.map(k => F.Fmt.fmtFullDate(F.Dates.parseDateKey(k))), 'Total'];
@@ -1525,25 +1572,30 @@
     lines.push(['Contas a Receber (Total)', ...ex.receberRow.map(moneyCsv), moneyCsv(ex.rTotal)].map(csvCell).join(';'));
     lines.push(['Contas a Pagar (Total)', ...ex.totalPagarCells.map(moneyCsv), moneyCsv(ex.subOut)].map(csvCell).join(';'));
 
-    // Categorias e fornecedores
-    ex.sortedGroups.forEach(g => {
-      const catCells = filteredDates.map(k => moneyCsv(g.byDate.get(k)?.total || 0));
-      lines.push([`  [${g.nome}]`, ...catCells, moneyCsv(g.total)].map(csvCell).join(';'));
-      const sortedVendors = sortVendors(g.fornecedores, sortState);
-      sortedVendors.forEach(v => {
-        const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
-        const cells = filteredDates.map(k => moneyCsv(v.byDate.get(k)?.total || 0));
-        lines.push([`    ${v.name}`, ...cells, moneyCsv(vTotal)].map(csvCell).join(';'));
+    // Categorias e fornecedores (apenas se o nível pedir)
+    if (level !== 'sintetico') {
+      ex.sortedGroups.forEach(g => {
+        const catCells = filteredDates.map(k => moneyCsv(g.byDate.get(k)?.total || 0));
+        lines.push([`  [${g.nome}]`, ...catCells, moneyCsv(g.total)].map(csvCell).join(';'));
+        if (level === 'fornecedores') {
+          const sortedVendors = sortVendors(g.fornecedores, sortState);
+          sortedVendors.forEach(v => {
+            const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
+            const cells = filteredDates.map(k => moneyCsv(v.byDate.get(k)?.total || 0));
+            lines.push([`    ${v.name}`, ...cells, moneyCsv(vTotal)].map(csvCell).join(';'));
+          });
+        }
       });
-    });
+    }
 
     lines.push(['Saldo do dia', ...ex.saldoCells.map(moneyCsv), moneyCsv(ex.sT)].map(csvCell).join(';'));
 
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-    downloadBlob(blob, getExportFilename('csv'));
+    downloadBlob(blob, getExportFilename('csv', level));
   }
 
-  function exportXLSX() {
+  function exportXLSX(level) {
+    level = level || 'fornecedores';
     F.UI.showLoading('Gerando planilha…');
     setTimeout(() => {
       try {
@@ -1553,19 +1605,23 @@
         aoa.push(['Contas a Receber (Total)', ...ex.receberRow, ex.rTotal]);
         aoa.push(['Contas a Pagar (Total)', ...ex.totalPagarCells, ex.subOut]);
 
-        // Categorias e fornecedores
+        // Categorias e fornecedores (apenas se nível pedir)
         const catRowIndices = [];
-        ex.sortedGroups.forEach(g => {
-          const catCells = filteredDates.map(k => g.byDate.get(k)?.total || 0);
-          aoa.push([`▸ ${g.nome}`, ...catCells, g.total]);
-          catRowIndices.push(aoa.length - 1); // armazena índice 0-based da linha
-          const sortedVendors = sortVendors(g.fornecedores, sortState);
-          sortedVendors.forEach(v => {
-            const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
-            const cells = filteredDates.map(k => v.byDate.get(k)?.total || 0);
-            aoa.push([`    ${v.name}`, ...cells, vTotal]);
+        if (level !== 'sintetico') {
+          ex.sortedGroups.forEach(g => {
+            const catCells = filteredDates.map(k => g.byDate.get(k)?.total || 0);
+            aoa.push([`▸ ${g.nome}`, ...catCells, g.total]);
+            catRowIndices.push(aoa.length - 1); // armazena índice 0-based da linha
+            if (level === 'fornecedores') {
+              const sortedVendors = sortVendors(g.fornecedores, sortState);
+              sortedVendors.forEach(v => {
+                const vTotal = filteredDates.reduce((s, k) => s + (v.byDate.get(k)?.total || 0), 0);
+                const cells = filteredDates.map(k => v.byDate.get(k)?.total || 0);
+                aoa.push([`    ${v.name}`, ...cells, vTotal]);
+              });
+            }
           });
-        });
+        }
 
         aoa.push(['Saldo do dia', ...ex.saldoCells, ex.sT]);
 
@@ -1585,7 +1641,7 @@
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Fluxo de Caixa');
-        XLSX.writeFile(wb, getExportFilename('xlsx'));
+        XLSX.writeFile(wb, getExportFilename('xlsx', level));
         F.UI.showToast('Planilha gerada', 'success');
       } catch (err) {
         console.error(err);
@@ -1596,33 +1652,70 @@
     }, 50);
   }
 
-  async function exportPNG() {
+  async function exportPNG(level) {
+    level = level || 'fornecedores';
     F.UI.showLoading('Gerando imagem…');
     const card = document.getElementById('grid-card');
     const scroll = document.getElementById('grid-scroll');
     const originalMaxHeight = scroll.style.maxHeight;
+
+    // Salva o estado atual de expansão para restaurar depois
+    const prevPagar = expandedPagarTotal;
+    const prevReceber = expandedReceber;
+    const prevCats = new Set(expandedCategories);
+
+    // Ajusta o estado conforme o nível pedido
+    if (level === 'sintetico') {
+      expandedPagarTotal = false;
+      expandedReceber = false;
+      expandedCategories = new Set();
+    } else if (level === 'categorias') {
+      expandedPagarTotal = true;
+      expandedCategories = new Set(); // categorias visíveis mas fornecedores recolhidos
+    } else { // fornecedores
+      expandedPagarTotal = true;
+      // Expande TODAS as categorias para mostrar fornecedores
+      const allCatIds = (processed?.vendors || []).reduce((acc, v) => {
+        const cid = (fornecedorMap[v.normKey]?.categoriaId) || 'cat_demais_fornecedores';
+        acc.add(cid);
+        return acc;
+      }, new Set());
+      expandedCategories = allCatIds;
+    }
+    render();
+
     scroll.style.maxHeight = 'none';
     scroll.classList.add('export-mode');
     try {
-      await new Promise(r => setTimeout(r, 80));
+      await new Promise(r => setTimeout(r, 150)); // dá tempo do render aplicar
       const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
       canvas.toBlob(blob => {
-        if (blob) downloadBlob(blob, getExportFilename('png'));
+        if (blob) downloadBlob(blob, getExportFilename('png', level));
         scroll.style.maxHeight = originalMaxHeight;
         scroll.classList.remove('export-mode');
+        // Restaura estado original
+        expandedPagarTotal = prevPagar;
+        expandedReceber = prevReceber;
+        expandedCategories = prevCats;
+        render();
         F.UI.showToast('Imagem gerada', 'success');
       }, 'image/png');
     } catch (err) {
       console.error(err);
       scroll.style.maxHeight = originalMaxHeight;
       scroll.classList.remove('export-mode');
+      expandedPagarTotal = prevPagar;
+      expandedReceber = prevReceber;
+      expandedCategories = prevCats;
+      render();
       F.UI.showToast('Erro: ' + err.message, 'error');
     } finally {
       F.UI.hideLoading();
     }
   }
 
-  async function exportPDF() {
+  async function exportPDF(level) {
+    level = level || 'fornecedores';
     F.UI.showLoading('Gerando PDF…');
     try {
       const ex = collectExportData();
@@ -1641,6 +1734,8 @@
       const e = document.getElementById('filter-end').value;
       const periodText = `${F.Fmt.fmtFullDate(F.Dates.parseDateKey(s))} a ${F.Fmt.fmtFullDate(F.Dates.parseDateKey(e))}`;
       const modeText = viewMode === 'effective' ? 'Data efetiva' : 'Vencimento';
+      const levelLabels = { sintetico: 'Sintético', categorias: 'Por categorias', fornecedores: 'Por fornecedores' };
+      const levelText = levelLabels[level] || '';
 
       const dateChunks = [];
       for (let i = 0; i < filteredDates.length; i += datesPerPage) {
@@ -1667,28 +1762,32 @@
           ...chunkIndices.map(i => ({ content: fmtMoneyForPdf(ex.totalPagarCells[i]), styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } })),
           { content: fmtMoneyForPdf(pTotalChunk), styles: { fontStyle: 'bold', fillColor: [252, 218, 217], textColor: [180, 35, 24] } },
         ]);
-        ex.sortedGroups.forEach(g => {
-          // Linha de categoria (fundo cinza claro, texto escuro)
-          const catChunkTotal = chunkIndices.reduce((a, i) => {
-            const dk = filteredDates[i];
-            return a + (g.byDate.get(dk)?.total || 0);
-          }, 0);
-          body.push([
-            { content: `▸ ${g.nome}`, styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [10, 14, 22] } },
-            ...chunkIndices.map(i => {
+        if (level !== 'sintetico') {
+          ex.sortedGroups.forEach(g => {
+            // Linha de categoria (fundo cinza claro, texto escuro)
+            const catChunkTotal = chunkIndices.reduce((a, i) => {
               const dk = filteredDates[i];
-              const val = g.byDate.get(dk)?.total || 0;
-              return { content: fmtMoneyForPdf(val), styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [180, 35, 24] } };
-            }),
-            { content: fmtMoneyForPdf(catChunkTotal), styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [180, 35, 24] } },
-          ]);
-          const sortedVendors = sortVendors(g.fornecedores, sortState);
-          sortedVendors.forEach(v => {
-            const cells = filteredDates.map(k => v.byDate.get(k)?.total || 0);
-            const chunkTotal = chunkIndices.reduce((a, i) => a + cells[i], 0);
-            body.push([`    ${v.name}`, ...chunkIndices.map(i => fmtMoneyForPdf(cells[i])), fmtMoneyForPdf(chunkTotal)]);
+              return a + (g.byDate.get(dk)?.total || 0);
+            }, 0);
+            body.push([
+              { content: `▸ ${g.nome}`, styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [10, 14, 22] } },
+              ...chunkIndices.map(i => {
+                const dk = filteredDates[i];
+                const val = g.byDate.get(dk)?.total || 0;
+                return { content: fmtMoneyForPdf(val), styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [180, 35, 24] } };
+              }),
+              { content: fmtMoneyForPdf(catChunkTotal), styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [180, 35, 24] } },
+            ]);
+            if (level === 'fornecedores') {
+              const sortedVendors = sortVendors(g.fornecedores, sortState);
+              sortedVendors.forEach(v => {
+                const cells = filteredDates.map(k => v.byDate.get(k)?.total || 0);
+                const chunkTotal = chunkIndices.reduce((a, i) => a + cells[i], 0);
+                body.push([`    ${v.name}`, ...chunkIndices.map(i => fmtMoneyForPdf(cells[i])), fmtMoneyForPdf(chunkTotal)]);
+              });
+            }
           });
-        });
+        }
         const sTChunk = chunkIndices.reduce((a, i) => a + ex.saldoCells[i], 0);
         body.push([
           { content: 'Saldo do dia', styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: [255, 255, 255] } },
@@ -1706,7 +1805,7 @@
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         const pageInfoText = dateChunks.length > 1 ? `Parte ${chunkIdx + 1}/${dateChunks.length} · ` : '';
-        doc.text(`${pageInfoText}${periodText} · ${modeText}`, pageW - margin, 9, { align: 'right' });
+        doc.text(`${pageInfoText}${periodText} · ${modeText} · ${levelText}`, pageW - margin, 9, { align: 'right' });
 
         doc.autoTable({
           head: head,
@@ -1735,7 +1834,7 @@
         doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · R2 Soluções Empresariais · Página ${pageCount}`, pageW / 2, pageH - 4, { align: 'center' });
       });
 
-      doc.save(getExportFilename('pdf'));
+      doc.save(getExportFilename('pdf', level));
       F.UI.showToast('PDF gerado', 'success');
     } catch (err) {
       console.error(err);
@@ -1945,12 +2044,14 @@
     // Extrair valor atual (se houver) para pre-fill
     const match = currentText.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
     const currentValue = parseFloat(match);
-    const preFill = Number.isFinite(currentValue) ? currentValue.toFixed(2).replace('.', ',') : '';
+    // Pré-preenche com separador de milhar (ex: 1234.56 → "1.234,56")
+    const preFill = Number.isFinite(currentValue) ? F.Fmt.fmtMoneyShort(currentValue) : '';
 
     cell.dataset.editing = 'true';
     const origClass = cell.className;
     cell.innerHTML = `<input type="text" class="bank-valor-input" placeholder="0,00" value="${preFill}" inputmode="decimal" />`;
     const input = cell.querySelector('input');
+    formatValueOnInput(input); // Aplica formatação automática durante digitação
     input.focus();
     input.select();
 
@@ -2016,6 +2117,69 @@
     const n = parseFloat(str);
     if (!Number.isFinite(n)) return NaN;
     return neg ? -n : n;
+  }
+
+  // Formata o valor digitado adicionando separadores de milhar em tempo real
+  // Ex: "1000" → "1.000", "1234567,89" → "1.234.567,89"
+  // Aceita digitação progressiva (não atrapalha o usuário ainda digitando).
+  function formatValueOnInput(input) {
+    if (!input) return;
+    const ev = (e) => {
+      const el = e.target;
+      let raw = el.value;
+      if (!raw) return;
+
+      // Detecta sinal negativo no começo
+      const neg = raw.startsWith('-');
+      if (neg) raw = raw.slice(1);
+
+      // Remove tudo que não é dígito, ponto ou vírgula
+      raw = raw.replace(/[^\d.,]/g, '');
+
+      // Identifica decimal separador: prioriza vírgula como decimal (padrão BR).
+      // Se tem só pontos, considera ponto como decimal apenas se aparecer uma vez no fim.
+      let inteiro, decimal;
+      if (raw.includes(',')) {
+        // Vírgula é o decimal; pontos são milhar (são removidos)
+        const partes = raw.split(',');
+        inteiro = partes[0].replace(/\./g, '');
+        decimal = partes.slice(1).join('').slice(0, 2); // máx 2 casas decimais
+      } else if ((raw.match(/\./g) || []).length === 1 && /\.\d{1,2}$/.test(raw)) {
+        // Tem um único ponto e parece decimal (ex: "1234.56")
+        const partes = raw.split('.');
+        inteiro = partes[0];
+        decimal = partes[1];
+      } else {
+        // Só dígitos ou múltiplos pontos como milhar
+        inteiro = raw.replace(/\./g, '');
+        decimal = null;
+      }
+
+      // Aplica separador de milhar no inteiro
+      const inteiroFmt = inteiro.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+      let novo;
+      if (decimal !== null && decimal !== undefined) {
+        novo = (inteiroFmt || '0') + ',' + decimal;
+      } else {
+        novo = inteiroFmt;
+      }
+      if (neg) novo = '-' + novo;
+
+      // Atualiza apenas se mudou (evita resetar cursor desnecessariamente)
+      if (el.value !== novo) {
+        // Tenta preservar a posição do cursor de forma aproximada
+        const oldLen = el.value.length;
+        const cursorPos = el.selectionStart;
+        el.value = novo;
+        const newLen = novo.length;
+        const diff = newLen - oldLen;
+        try {
+          el.setSelectionRange(cursorPos + diff, cursorPos + diff);
+        } catch (_) {}
+      }
+    };
+    input.addEventListener('input', ev);
   }
 
   /* ========== Modal: Histórico de saldos ========== */
@@ -2253,6 +2417,7 @@
     document.getElementById('btn-salvar-lancar-saldo')?.addEventListener('click', salvarLancarSaldo);
     document.getElementById('lancar-saldo-banco')?.addEventListener('change', updateLancarSaldoPreview);
     document.getElementById('lancar-saldo-valor')?.addEventListener('input', updateLancarSaldoPreview);
+    formatValueOnInput(document.getElementById('lancar-saldo-valor'));
     document.getElementById('lancar-saldo-valor')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); salvarLancarSaldo(); }
     });
