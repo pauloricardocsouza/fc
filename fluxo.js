@@ -1894,14 +1894,14 @@
       const saldo = atuais[id];
       const valorDisplay = saldo ? F.Fmt.fmtMoney(saldo.valor) : '— sem saldo —';
       const valorClass = saldo ? (saldo.valor < 0 ? 'neg' : '') : 'empty';
-      const ts = saldo ? F.Fmt.fmtRelativeTime(saldo.ts) : 'nunca lançado';
+      const ts = saldo ? F.Fmt.fmtShortDateTime(saldo.ts) : 'nunca lançado';
       const author = saldo ? ' · ' + F.escapeHTML(saldo.authorName || 'Anônimo') : '';
       return `
         <div class="saldo-item tipo-${F.escapeHTML(b.tipo)}" data-bank-id="${F.escapeHTML(id)}">
           <div class="bank-badge" title="${F.escapeHTML(b.nome)}">${F.escapeHTML(bankBadge(b.nome))}</div>
           <div class="bank-info">
             <div class="bank-nome" title="${F.escapeHTML(b.nome)}">${F.escapeHTML(b.nome)}</div>
-            <div class="bank-ts">Atualizado ${F.escapeHTML(ts)}${author}</div>
+            <div class="bank-ts">${F.escapeHTML(ts)}${author}</div>
           </div>
           <div class="bank-valor ${valorClass}" ${canEdit ? 'data-editable="true"' : ''} title="${canEdit ? 'Clique para editar' : 'Somente leitura'}">${F.escapeHTML(valorDisplay)}</div>
           ${isAdminUser ? `<button class="bank-delete" data-delete-bank="${F.escapeHTML(id)}" title="Arquivar esta conta">×</button>` : ''}

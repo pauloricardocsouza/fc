@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v5.2';
+  const APP_VERSION = 'v5.3';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -529,6 +529,15 @@
     if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`;
     if (diff < 604800) return `${Math.floor(diff / 86400)}d atrás`;
     return new Date(ts).toLocaleDateString('pt-BR');
+  }
+  // Formato curto absoluto: "28/04 - 16h25"
+  function fmtShortDateTime(ts) {
+    const d = new Date(ts);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm} - ${hh}h${min}`;
   }
   function fmtDateTimeFull(ts) {
     const d = new Date(ts);
@@ -1776,7 +1785,7 @@
     Fmt: {
       fmtMoney, fmtMoneyShort, fmtCellMoney,
       fmtFullDate, fmtHeaderDate, weekdayShort, weekdayFull,
-      fmtRelativeTime, fmtDateTimeFull,
+      fmtRelativeTime, fmtDateTimeFull, fmtShortDateTime,
     },
     escapeHTML,
     cleanEntityName,
