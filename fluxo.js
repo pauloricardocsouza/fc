@@ -832,63 +832,54 @@
     // Expõe flags de render atual no dataset do grid (acessível pelo delegate)
     grid.dataset.hasReceberManual = hasReceberManual ? '1' : '0';
 
-    // Delegação de eventos no grid — registra no TABLE pai (não na tabela do grid)
-    // para ser mais robusto. Só registra uma vez por sessão.
+    // Delegação de eventos no #grid-scroll — registra UMA VEZ por sessão.
+    // Usa variável de módulo (_toggleDelegateRegistered) em vez de propriedade DOM
+    // para garantir que o flag não se perca entre re-renders.
+    setupToggleDelegate();
+  }
+
+  let _toggleDelegateRegistered = false;
+  function setupToggleDelegate() {
+    if (_toggleDelegateRegistered) return;
     const gridScroll = document.getElementById('grid-scroll');
-    if (gridScroll && !gridScroll._toggleDelegated) {
-      gridScroll._toggleDelegated = true;
-      console.log('[Toggle] Registrando listener delegate no #grid-scroll');
+    if (!gridScroll) return;
+    _toggleDelegateRegistered = true;
+    console.log('[Toggle] Registrando listener delegate no #grid-scroll (uma vez)');
 
-      gridScroll.addEventListener('click', (e) => {
-        const target = e.target;
-        console.log('[Toggle] Clique detectado em:', target.tagName, target.className || '(sem classe)');
+    gridScroll.addEventListener('click', (e) => {
+      const target = e.target;
+      const grid = document.getElementById('grid');
 
-        // Toggle categoria (mais específico primeiro)
-        const catRow = target.closest('[data-toggle-cat]');
-        if (catRow) {
-          // Verifica se clicou numa célula de valor dessa categoria
-          const td = target.closest('td');
-          // Nas cat-rows, os tds de valor têm class "cat-cell" (não são clicáveis individualmente)
-          // Então qualquer clique na cat-row deve togglear
-          const cid = catRow.dataset.toggleCat;
-          console.log('[Toggle] Categoria clicada:', cid);
-          if (expandedCategories.has(cid)) expandedCategories.delete(cid);
-          else expandedCategories.add(cid);
-          render();
-          return;
-        }
+      // Toggle categoria (mais específico primeiro)
+      const catRow = target.closest('[data-toggle-cat]');
+      if (catRow) {
+        const cid = catRow.dataset.toggleCat;
+        if (expandedCategories.has(cid)) expandedCategories.delete(cid);
+        else expandedCategories.add(cid);
+        render();
+        return;
+      }
 
-        // Toggle linha "Contas a Pagar (Total)"
-        const pagarRow = target.closest('[data-toggle-pagar]');
-        if (pagarRow) {
-          console.log('[Toggle] Pagar Total clicado');
-          expandedPagarTotal = !expandedPagarTotal;
-          render();
-          return;
-        }
+      // Toggle linha "Contas a Pagar (Total)"
+      const pagarRow = target.closest('[data-toggle-pagar]');
+      if (pagarRow) {
+        expandedPagarTotal = !expandedPagarTotal;
+        render();
+        return;
+      }
 
-        // Toggle linha "Contas a Receber (Total)"
-        const receberRow = target.closest('[data-toggle-receber]');
-        if (receberRow) {
-          console.log('[Toggle] Receber Total clicado');
-          // Ignora clique em células com data-detail ou data-add (cliques em valores reais)
-          const td = target.closest('td');
-          if (td && (td.hasAttribute('data-detail') || td.hasAttribute('data-add'))) {
-            console.log('[Toggle] Clique em célula de valor — ignorado');
-            return;
-          }
-          if (grid.dataset.hasReceberManual !== '1') {
-            console.log('[Toggle] Sem receber manuais — não expande');
-            return;
-          }
-          expandedReceber = !expandedReceber;
-          render();
-          return;
-        }
-
-        console.log('[Toggle] Clique fora de zona togglable');
-      });
-    }
+      // Toggle linha "Contas a Receber (Total)"
+      const receberRow = target.closest('[data-toggle-receber]');
+      if (receberRow) {
+        // Ignora clique em células com data-detail ou data-add (cliques em valores reais)
+        const td = target.closest('td');
+        if (td && (td.hasAttribute('data-detail') || td.hasAttribute('data-add'))) return;
+        if (grid && grid.dataset.hasReceberManual !== '1') return;
+        expandedReceber = !expandedReceber;
+        render();
+        return;
+      }
+    });
   }
 
   /* ========== Provisões (Firebase) ========== */
