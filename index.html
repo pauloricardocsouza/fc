@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Filadelfia — Fluxo de Caixa</title>
+<title>FC Filadelfia — Fluxo de Caixa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css?v=4.6">
-<link rel="stylesheet" href="fluxo.css?v=4.6">
+<link rel="stylesheet" href="shared.css?v=4.7">
+<link rel="stylesheet" href="fluxo.css?v=4.7">
 <style>
   /* Meta-info chips (data/hora da importação + período) */
   .meta-info {
@@ -199,7 +199,7 @@
       <!-- Totais consolidados -->
       <div class="saldos-totais">
         <div class="saldo-total-card saldo-total-livre">
-          <div class="stc-lbl">CONTAS LIVRES</div>
+          <div class="stc-lbl">CONTAS CORRENTES</div>
           <div class="stc-val" id="saldo-total-livre">R$ 0,00</div>
           <div class="stc-meta" id="saldo-total-livre-meta">— contas</div>
         </div>
@@ -217,7 +217,7 @@
 
       <!-- Grupos de bancos -->
       <div class="saldos-grupo">
-        <div class="saldos-grupo-titulo">Contas livres</div>
+        <div class="saldos-grupo-titulo">Contas correntes</div>
         <div class="saldos-lista" id="saldos-lista-livres"></div>
       </div>
 
@@ -279,7 +279,7 @@
       <div class="form-field">
         <label>Tipo</label>
         <select id="novo-banco-tipo">
-          <option value="livre">Livre (operacional)</option>
+          <option value="livre">Corrente (operacional)</option>
           <option value="vinculada">Vinculada / Garantida</option>
         </select>
       </div>
@@ -490,8 +490,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <!-- Módulos do sistema -->
-<script src="shared.js?v=4.6"></script>
-<script src="fluxo.js?v=4.6"></script>
+<script src="shared.js?v=4.7"></script>
+<script src="fluxo.js?v=4.7"></script>
 
 </body>
 </html>

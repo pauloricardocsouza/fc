@@ -2155,7 +2155,8 @@
           // O subscribe do Firebase vai disparar e atualizar "bancos".
           // Esperar 500ms para o Firebase sincronizar antes de reabrir.
           setTimeout(() => {
-            if (Object.keys(bancos).length > 0) {
+            const ativos = Object.values(bancos).filter(b => b && !b.arquivado).length;
+            if (ativos > 0) {
               F.UI.showToast('Contas cadastradas. Abrindo modal…', 'success');
               openLancarSaldo(); // reabre
             } else {
@@ -2177,7 +2178,7 @@
 
     let html = '<option value="">Selecione uma conta…</option>';
     if (livres.length) {
-      html += '<optgroup label="Contas livres">';
+      html += '<optgroup label="Contas correntes">';
       livres.forEach(([id, b]) => {
         const saldoAtual = atuais[id];
         const hint = saldoAtual ? ' — atual: ' + F.Fmt.fmtMoney(saldoAtual.valor) : ' — sem saldo';

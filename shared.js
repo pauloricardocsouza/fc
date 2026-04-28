@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v4.6';
+  const APP_VERSION = 'v4.7';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
@@ -628,7 +628,7 @@
       <a class="brand" href="index.html">
         <div class="brand-mark">${BRAND_SVG}</div>
         <div class="brand-text">
-          <span class="name">Filadelfia</span>
+          <span class="name">FC Filadelfia</span>
           <span class="sub">Sistema Financeiro</span>
         </div>
       </a>
@@ -883,7 +883,7 @@
               type: 'banco',
               typeLabel: 'Banco',
               title: b.nome,
-              description: b.tipo === 'vinculada' ? 'Conta vinculada / garantida' : 'Conta livre',
+              description: b.tipo === 'vinculada' ? 'Conta vinculada / garantida' : 'Conta corrente',
               url: `index.html`,
               icon: '🏦',
             });
@@ -1519,7 +1519,7 @@
 
   // Lista inicial de bancos pré-cadastrados (criada automaticamente na primeira vez)
   const DEFAULT_BANKS = [
-    // Contas livres (operacionais)
+    // Contas correntes (operacionais)
     { nome: 'ABC', tipo: 'livre', ordem: 10 },
     { nome: 'ITAU', tipo: 'livre', ordem: 20 },
     { nome: 'SAFRA', tipo: 'livre', ordem: 30 },
@@ -1542,7 +1542,9 @@
     { nome: 'VINCULADA ABC', tipo: 'vinculada', ordem: 290 },
   ];
 
-  // Chamado pela página do fluxo ao inicializar; se já existir, não faz nada
+  // Chamado pela página do fluxo ao inicializar.
+  // Garante que os 19 bancos padrão existam e estejam ATIVOS (desarquiva se necessário).
+  // Bancos extras (criados pelo usuário) são preservados.
   async function ensureDefaultBanks() {
     if (!state.fbDB) {
       console.log('[Bancos] Firebase não disponível');
@@ -1550,19 +1552,34 @@
     }
     try {
       const snap = await dbRef('bancos').once('value');
-      const existing = snap.val();
-      const existingCount = existing ? Object.keys(existing).length : 0;
+      const existing = snap.val() || {};
+      const existingTotal = Object.keys(existing).length;
+      const ativosCount = Object.values(existing).filter(b => b && !b.arquivado).length;
 
-      console.log('[Bancos] Contas existentes no Firebase:', existingCount);
+      console.log('[Bancos] Total no Firebase:', existingTotal, '| Ativos:', ativosCount);
       console.log('[Bancos] Role do usuário atual:', state.user?.role || '(ainda não definido)');
 
-      // Se já tem pelo menos uma conta, não mexemos (evita re-criar bancos arquivados)
-      if (existingCount > 0) {
-        console.log('[Bancos] Já existem bancos cadastrados, não vou criar defaults.');
+      // Identifica IDs dos bancos padrão que precisam ser criados ou desarquivados
+      const acoes = [];
+      for (const b of DEFAULT_BANKS) {
+        const id = 'bank_' + b.nome.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        const atual = existing[id];
+        if (!atual) {
+          acoes.push({ id, banco: b, tipo: 'criar' });
+        } else if (atual.arquivado === true) {
+          acoes.push({ id, banco: b, tipo: 'desarquivar' });
+        }
+        // Senão (já existe e ativo), não faz nada
+      }
+
+      if (acoes.length === 0) {
+        console.log('[Bancos] Todos os 19 bancos padrão já estão cadastrados e ativos.');
         return;
       }
 
-      // Só cria se usuário pode escrever (evita erro de permissão para viewer)
+      console.log('[Bancos] Ações pendentes:', acoes.length, '(criar:', acoes.filter(a => a.tipo === 'criar').length, ', desarquivar:', acoes.filter(a => a.tipo === 'desarquivar').length, ')');
+
+      // Só executa se usuário pode escrever
       if (!state.user || !state.user.uid) {
         console.warn('[Bancos] Usuário ainda não está definido — tente novamente em alguns segundos.');
         return;
@@ -1572,34 +1589,38 @@
         return;
       }
 
-      console.log('[Bancos] Criando', DEFAULT_BANKS.length, 'bancos padrão…');
-
-      // Abordagem mais resistente: criar um-a-um. Se um falhar, os outros continuam.
       let ok = 0, fail = 0;
-      for (const b of DEFAULT_BANKS) {
-        const id = 'bank_' + b.nome.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      for (const acao of acoes) {
         try {
-          await dbRef(`bancos/${id}`).set({
-            nome: b.nome,
-            tipo: b.tipo,
-            ordem: b.ordem || 999,
-            arquivado: false,
-            createdBy: state.user.uid,
-            createdByName: state.user.displayName || state.user.email || 'Sistema',
-            createdAt: firebase.database.ServerValue.TIMESTAMP,
-          });
+          if (acao.tipo === 'criar') {
+            await dbRef(`bancos/${acao.id}`).set({
+              nome: acao.banco.nome,
+              tipo: acao.banco.tipo,
+              ordem: acao.banco.ordem || 999,
+              arquivado: false,
+              createdBy: state.user.uid,
+              createdByName: state.user.displayName || state.user.email || 'Sistema',
+              createdAt: firebase.database.ServerValue.TIMESTAMP,
+            });
+          } else if (acao.tipo === 'desarquivar') {
+            await dbRef(`bancos/${acao.id}`).update({
+              arquivado: false,
+              tipo: acao.banco.tipo,
+              ordem: acao.banco.ordem || 999,
+            });
+          }
           ok++;
         } catch (err) {
           fail++;
-          console.warn(`[Bancos] Falha ao criar "${b.nome}":`, err.message);
+          console.warn(`[Bancos] Falha ao ${acao.tipo} "${acao.banco.nome}":`, err.message);
         }
       }
-      console.log(`[Bancos] ✓ Criados ${ok} de ${DEFAULT_BANKS.length} (${fail} falharam)`);
+      console.log(`[Bancos] ✓ Aplicado ${ok} de ${acoes.length} (${fail} falharam)`);
       if (ok === 0 && fail > 0) {
-        throw new Error('Nenhum banco foi criado — verifique as rules do Firebase');
+        throw new Error('Nenhuma ação foi aplicada — verifique as rules do Firebase');
       }
     } catch (err) {
-      console.error('[Bancos] Erro ao criar bancos padrão:', err);
+      console.error('[Bancos] Erro:', err);
       throw err;
     }
   }
