@@ -495,14 +495,14 @@ table.grid tfoot tr.saldo-final td .sf-value {
   line-height: 1.15;
 }
 table.grid tfoot tr.saldo-final td .sf-legend {
-  font-size: 7.5px;
+  font-size: 6.5px;
   font-weight: 500;
   font-family: 'Archivo', sans-serif;
-  line-height: 1.15;
-  margin-top: 2px;
+  line-height: 1.1;
+  margin-top: 1px;
   color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 table.grid tfoot tr.saldo-final td .sf-legend.launched {
   color: var(--accent);

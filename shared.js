@@ -21,7 +21,7 @@
      - major: mudanças estruturais profundas
      - minor: correções e melhorias pontuais
      ======================================= */
-  const APP_VERSION = 'v6.9';
+  const APP_VERSION = 'v7.0';
 
   /* ========== Firebase config ==========
      SUBSTITUIR pelos valores do seu projeto
