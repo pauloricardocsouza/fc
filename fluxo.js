@@ -2036,7 +2036,7 @@
               return a + (g.byDate.get(dk)?.total || 0);
             }, 0);
             body.push([
-              { content: `▸ ${g.nome}`, styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [10, 14, 22] } },
+              { content: `»  ${g.nome}`, styles: { fontStyle: 'bold', fillColor: [245, 247, 251], textColor: [10, 14, 22] } },
               ...chunkIndices.map(i => {
                 const dk = filteredDates[i];
                 const val = g.byDate.get(dk)?.total || 0;
@@ -2069,7 +2069,7 @@
         const finalChunkCells = chunkIndices.map(i => {
           const c = ex.bankCells[i];
           if (c.fimDoDia == null) {
-            return { content: '–', styles: { fontStyle: 'normal', fillColor: [10, 14, 22], textColor: bankFgEmptyPdf } };
+            return { content: '-', styles: { fontStyle: 'normal', fillColor: [10, 14, 22], textColor: bankFgEmptyPdf } };
           }
           lastFinalChunk = c.fimDoDia;
           return { content: fmtMoneyForPdf(c.fimDoDia), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: c.fimDoDia >= 0 ? [28, 167, 236] : [255, 121, 113] } };
@@ -2079,7 +2079,7 @@
           ...finalChunkCells,
           lastFinalChunk != null
             ? { content: fmtMoneyForPdf(lastFinalChunk), styles: { fontStyle: 'bold', fillColor: [10, 14, 22], textColor: lastFinalChunk >= 0 ? [28, 167, 236] : [255, 121, 113] } }
-            : { content: '–', styles: { fillColor: [10, 14, 22], textColor: bankFgEmptyPdf } },
+            : { content: '-', styles: { fillColor: [10, 14, 22], textColor: bankFgEmptyPdf } },
         ]);
 
         // Linha auxiliar com legenda Lançado/Transportado (fonte pequena, fundo discreto)
@@ -2201,7 +2201,7 @@
   }
 
   function fmtMoneyForPdf(v) {
-    if (Math.abs(v) < 0.005) return '–';
+    if (Math.abs(v) < 0.005) return '-';
     return F.Fmt.fmtMoneyShort(v);
   }
 
