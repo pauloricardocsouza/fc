@@ -388,10 +388,29 @@
     startInput.addEventListener('change', render);
     endInput.addEventListener('change', render);
 
-    document.getElementById('btn-reset').addEventListener('click', () => {
-      startInput.value = processed.allDates[0];
-      endInput.value = processed.allDates[processed.allDates.length - 1];
+    document.getElementById('btn-next-week').addEventListener('click', () => {
+      // Calcula segunda-feira da próxima semana (semana seguinte à atual)
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const dow = hoje.getDay(); // 0=dom, 1=seg, ..., 6=sáb
+      const offset = 8 - (dow === 0 ? 7 : dow); // dias até segunda da próxima semana
+      const proximaSeg = new Date(hoje);
+      proximaSeg.setDate(hoje.getDate() + offset);
+      const proximaSex = new Date(proximaSeg);
+      proximaSex.setDate(proximaSeg.getDate() + 4); // sexta = segunda + 4
+
+      const segKey = F.Dates.dateKey(proximaSeg);
+      const sexKey = F.Dates.dateKey(proximaSex);
+
+      // Aplica nos inputs (não trava nas datas disponíveis — os inputs aceitam qualquer data
+      // e a renderização filtra apenas o que existe em allDates dentro do range)
+      startInput.value = segKey;
+      endInput.value = sexKey;
       render();
+
+      // Feedback visual: toast informando o período aplicado
+      const fmtBR = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      F.UI.showToast(`Período: ${fmtBR(proximaSeg)} a ${fmtBR(proximaSex)}`, 'success');
     });
 
     document.getElementById('view-effective').addEventListener('click', () => setViewMode('effective'));
